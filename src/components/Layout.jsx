@@ -1,27 +1,47 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Monitor, Sliders } from 'lucide-react';
 
 const Layout = ({ sidebar, viewer, onHelpClick }) => {
+
+
   return (
-    <div className="flex h-screen w-full bg-blender-bg text-blender-text font-sans overflow-hidden select-none">
-      {/* Top Header Bar - Blender Style */}
-      <div className="absolute top-0 left-0 right-0 h-8 bg-blender-header border-b border-blender-border flex items-center px-4 text-xs font-medium z-20 shadow-sm">
-        <div className="flex items-center gap-2 text-gray-300">
-          <Layers className="w-4 h-4 text-blender-active" />
-          <span>Ascii-Studio v1.0</span>
+    <div className="flex h-screen w-full bg-blender-bg text-blender-text font-sans overflow-hidden select-none text-[11px]">
+
+      {/* Blender Top Bar */}
+      <div className="absolute top-0 left-0 right-0 h-6 bg-blender-header border-b border-blender-border flex items-center px-1 z-30 shadow-md">
+        {/* Editor Type Selector */}
+        <div className="flex items-center px-2 py-0.5 hover:bg-blender-hover rounded-sm cursor-pointer mr-2 transition-colors">
+          <Monitor className="w-3 h-3 text-blender-active mr-1.5" />
+          <ChevronDown className="w-2.5 h-2.5 text-gray-500" />
         </div>
-        <div className="flex items-center ml-6 gap-4">
-          <span className="hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-blender-hover">File</span>
-          <span className="hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-blender-hover">Edit</span>
-          <span className="hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-blender-hover">Render</span>
-          <span className="hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-blender-hover">Window</span>
-          <span onClick={onHelpClick} className="hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-blender-hover">Help</span>
+
+        {/* Menus */}
+        <div className="flex items-center gap-0.5">
+          {['File', 'Edit', 'Render', 'Window', 'Help'].map((menu) => (
+            <div
+              key={menu}
+              onClick={menu === 'Help' ? onHelpClick : undefined}
+              className="px-2.5 py-0.5 hover:bg-blender-hover rounded-sm cursor-pointer text-gray-300 hover:text-white transition-colors"
+            >
+              {menu}
+            </div>
+          ))}
+        </div>
+
+
+
+        <div className="flex items-center h-full ml-auto overflow-hidden">
         </div>
       </div>
 
-      <div className="flex flex-row w-full h-full pt-8">
-        {/* Left Side Properties Panel */}
-        <div className="w-[320px] h-full bg-blender-panel border-r border-blender-border flex flex-col z-10 flex-shrink-0">
+      <div className="flex flex-row w-full h-full pt-6">
+        {/* Left Side Properties Panel (The "Properties" Editor) */}
+        <div className="w-[280px] h-full bg-blender-panel border-r border-blender-border flex flex-col z-10 flex-shrink-0 shadow-xl">
+          {/* Header for Properties panel */}
+          <div className="h-6 bg-blender-header border-b border-blender-border flex items-center px-2 gap-2">
+            <Sliders className="w-3 h-3 text-blender-accent" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Properties</span>
+          </div>
           {sidebar}
         </div>
 
@@ -34,4 +54,11 @@ const Layout = ({ sidebar, viewer, onHelpClick }) => {
   );
 };
 
+const ChevronDown = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
 export default Layout;
+

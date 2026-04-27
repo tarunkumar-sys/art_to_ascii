@@ -26,7 +26,7 @@ Get started with Ascii-Studio in seconds:
 #### 1. Clone the Repository
 ```bash
 git clone https://github.com/tarunkumar-sys/art_to_ascii.git
-cd art_to_ascii/ascii-app
+cd art_to_ascii
 ```
 
 #### 2. Install Dependencies

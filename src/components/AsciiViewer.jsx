@@ -10,12 +10,9 @@ const AsciiViewer = ({
   return (
     <div className="absolute inset-0 flex flex-col">
       {/* 3D Viewport Header */}
-      <div className="h-7 bg-blender-header border-b border-blender-border flex items-center px-3 justify-between shadow-sm z-10 select-none">
+      <div className="h-6 bg-blender-header border-b border-blender-border flex items-center px-3 justify-between shadow-sm z-10 select-none">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-gray-300 text-xs font-medium border-r border-blender-border pr-3">
-            <Box className="w-3.5 h-3.5" />
-            <span>Viewport Rendering</span>
-          </div>
+
           {/* Tool modes */}
           <div className="flex gap-1 bg-[#151515] p-0.5 rounded border border-blender-border">
             <button
