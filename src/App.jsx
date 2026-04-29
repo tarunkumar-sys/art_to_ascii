@@ -3,7 +3,7 @@ import Layout from './components/Layout';
 import Sidebar from './components/Sidebar';
 import AsciiViewer from './components/AsciiViewer';
 import HelpModal from './components/HelpModal';
-import { DEFAULT_ASCII, GRAY_RAMP_BALANCED, GRAY_RAMP_DARK, convertToGrayScales, drawVideoAscii } from './utils/ascii-engine';
+import { DEFAULT_ASCII, GRAY_RAMP_BALANCED, GRAY_RAMP_DARK, convertToGrayScales, drawVideoAscii, convertImageToAscii } from './utils/ascii-engine';
 
 function App() {
   const [mediaFile, setMediaFile] = useState(null);
@@ -66,48 +66,16 @@ function App() {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      // Setup display
-      const w = 500;
-      const h = 500;
-
-      const canvas = previewCanvasRef.current;
-      if (!canvas) return;
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-
-      ctx.scale((w / img.width) * 0.5, (h / img.height) * 0.5);
-      ctx.drawImage(img, 0, 0);
-
-      const data = ctx.getImageData(0, 0, w, h).data;
-      let asciiImage = "";
-
-      const asciiStr = getActiveAsciiString();
-
-      for (let i = 0; i < h >> 1; i++) {
-        for (let j = 0; j < w >> 1; j++) {
-          let off = (i * h + j) << 2;
-          let r = data[off];
-          let g = data[off + 1];
-          let b = data[off + 2];
-
-          let grayscale = (r + g + b) / 3.0;
-          let index = Math.floor((grayscale / 255) * (asciiStr.length - 1));
-          if (index >= asciiStr.length) index = asciiStr.length - 1;
-
-          let char = asciiStr.charAt(index);
-          asciiImage += char;
-        }
-        asciiImage += '\n';
-      }
-      setAsciiOutput(asciiImage);
+      const w = Math.floor(100 + resolution * 133);
+      const h = w;
+      const result = convertImageToAscii(img, getActiveAsciiString(), w, h);
+      setAsciiOutput(result);
     };
     img.src = mediaUrl;
-  }, [mediaUrl, mediaType, asciiMode, customChars]);
+  }, [mediaUrl, mediaType, asciiMode, customChars, resolution]);
 
-  // Video processing loop
-  const processVideoFrame = useCallback(() => {
-    if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+  const renderFrame = useCallback(() => {
+    if (!videoRef.current || !previewCanvasRef.current) return;
 
     const video = videoRef.current;
     const canvas = previewCanvasRef.current;
@@ -115,9 +83,11 @@ function App() {
 
     const multiplier = 4 - resolution;
     const baseWidth = Math.floor(window.innerWidth / 3 / multiplier);
-    const width = Math.min(baseWidth, 150); // cap width to avoid crazy lag
+    const width = Math.min(baseWidth, 150);
     const horizontalWidth = (video.videoHeight / video.videoWidth) * width;
-    const height = horizontalWidth;
+    const height = horizontalWidth || 100; // fallback height
+
+    if (isNaN(width) || isNaN(height) || width === 0 || height === 0) return;
 
     canvas.width = width;
     canvas.height = height;
@@ -127,9 +97,38 @@ function App() {
     const asciiText = drawVideoAscii(grayScales, width, getActiveAsciiString());
 
     setAsciiOutput(asciiText);
-
-    reqRef.current = requestAnimationFrame(processVideoFrame);
   }, [resolution, asciiMode, customChars]);
+
+  // Video processing loop
+  const processVideoFrame = useCallback(() => {
+    if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+    renderFrame();
+    reqRef.current = requestAnimationFrame(processVideoFrame);
+  }, [renderFrame]);
+
+  // Initial video frame preview
+  useEffect(() => {
+    if (mediaType === 'video' && videoRef.current) {
+      const video = videoRef.current;
+      const handleLoadedData = () => {
+        // Seek to 0.1s to avoid potential black frame at 0.0s
+        video.currentTime = 0.1;
+      };
+      const handleSeeked = () => {
+        renderFrame();
+      };
+
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('seeked', handleSeeked);
+      
+      if (video.readyState >= 2) handleLoadedData();
+
+      return () => {
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('seeked', handleSeeked);
+      };
+    }
+  }, [mediaUrl, mediaType, renderFrame]);
 
   useEffect(() => {
     if (mediaType === 'image') {

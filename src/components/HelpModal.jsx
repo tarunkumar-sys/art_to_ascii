@@ -84,13 +84,10 @@ const HelpModal = ({ isOpen, onClose }) => {
                 </p>
               </div>
               <div className="flex items-center justify-start gap-2 mt-3">
-                <a href="#" className="p-1.5 bg-blender-input hover:bg-blender-active border border-blender-border text-gray-400 hover:text-white rounded-full transition-colors" title="GitHub">
+                <a href="https://github.com/tarunkumar-sys" className="p-1.5 bg-blender-input hover:bg-blender-active border border-blender-border text-gray-400 hover:text-white rounded-full transition-colors" title="GitHub">
                   <Code className="w-3.5 h-3.5" />
                 </a>
-                <a href="#" className="p-1.5 bg-blender-input hover:bg-blender-active border border-blender-border text-gray-400 hover:text-white rounded-full transition-colors" title="Email Developer">
-                  <Mail className="w-3.5 h-3.5" />
-                </a>
-                <a href="#" className="p-1.5 bg-blender-input hover:bg-blender-active border border-blender-border text-gray-400 hover:text-white rounded-full transition-colors" title="LinkedIn">
+                <a href="https://dev.to/scary_crimson" className="p-1.5 bg-blender-input hover:bg-blender-active border border-blender-border text-gray-400 hover:text-white rounded-full transition-colors" title="Blog">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

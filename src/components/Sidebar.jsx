@@ -59,7 +59,14 @@ const Sidebar = ({
 
       <CollapsiblePanel title="Source Media">
         <div className="space-y-3">
-          <label className="flex items-center justify-center w-full bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm py-4 cursor-pointer group transition-all shadow-inner">
+          <label
+            className="flex items-center justify-center w-full bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm py-4 cursor-pointer group transition-all shadow-inner"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleFileUpload(e);
+            }}
+          >
             <input type="file" className="hidden" accept="image/*,video/mp4,video/mov,image/gif" onChange={handleFileUpload} />
             <div className="flex flex-col items-center">
               <FolderOpen className="w-5 h-5 mb-1 text-blender-active group-hover:scale-110 transition-transform" />
@@ -78,9 +85,9 @@ const Sidebar = ({
                   )}
                 </div>
               </div>
-              
+
               {mediaType === 'video' && (
-                <button 
+                <button
                   onClick={togglePlay}
                   className="flex items-center justify-center gap-2 w-full py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm text-[10px] font-bold text-gray-300 transition-colors shadow-sm"
                 >

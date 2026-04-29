@@ -41,7 +41,7 @@ export const convertImageToAscii = (img, asciiString, width, height) => {
 
     for (let i = 0; i < renderH; i++) {
         for (let j = 0; j < renderW; j++) {
-            let off = (i * height + j) << 2;
+            let off = (i * width + j) << 2;
             let r = data[off];
             let g = data[off + 1];
             let b = data[off + 2];
