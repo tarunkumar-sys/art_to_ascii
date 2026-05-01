@@ -1,9 +1,7 @@
 import React from 'react';
 import { Monitor, Sliders } from 'lucide-react';
 
-const Layout = ({ sidebar, viewer, onHelpClick }) => {
-
-
+const Layout = ({ sidebar, viewer, bottomPanel, onHelpClick }) => {
   return (
     <div className="flex h-screen w-full bg-blender-bg text-blender-text font-sans overflow-hidden select-none text-[11px]">
 
@@ -46,8 +44,11 @@ const Layout = ({ sidebar, viewer, onHelpClick }) => {
         </div>
 
         {/* 3D/Viewer Viewport */}
-        <div className="flex-1 h-full bg-blender-bg relative overflow-hidden">
-          {viewer}
+        <div className="flex-1 h-full bg-blender-bg relative overflow-hidden flex flex-col">
+          <div className="flex-1 relative overflow-hidden">
+            {viewer}
+          </div>
+          {bottomPanel}
         </div>
       </div>
     </div>

@@ -85,19 +85,6 @@ const Sidebar = ({
                   )}
                 </div>
               </div>
-
-              {mediaType === 'video' && (
-                <button
-                  onClick={togglePlay}
-                  className="flex items-center justify-center gap-2 w-full py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm text-[10px] font-bold text-gray-300 transition-colors shadow-sm"
-                >
-                  {isPlaying ? (
-                    <><Pause className="w-3 h-3 text-blender-active" /> PAUSE PLAYBACK</>
-                  ) : (
-                    <><Play className="w-3 h-3 text-blender-active" /> START PLAYBACK</>
-                  )}
-                </button>
-              )}
             </div>
           )}
         </div>

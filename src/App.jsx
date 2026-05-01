@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Sidebar from './components/Sidebar';
 import AsciiViewer from './components/AsciiViewer';
 import HelpModal from './components/HelpModal';
+import BottomPanel from './components/BottomPanel';
 import { DEFAULT_ASCII, GRAY_RAMP_BALANCED, GRAY_RAMP_DARK, convertToGrayScales, drawVideoAscii, convertImageToAscii } from './utils/ascii-engine';
 
 function App() {
@@ -17,9 +18,16 @@ function App() {
 
   // Video Playback
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   // Output
   const [asciiOutput, setAsciiOutput] = useState('');
+
+  // Panel State
+  const [panelHeight, setPanelHeight] = useState(110);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
 
   // Zoom/Pan for viewer
   const [zoom, setZoom] = useState(1);
@@ -46,11 +54,14 @@ function App() {
     setMediaFile(file);
     setAsciiOutput('');
     setIsPlaying(false);
+    setCurrentTime(0);
 
     if (file.type.startsWith('video/')) {
       setMediaType('video');
+      setIsPanelVisible(true);
     } else {
       setMediaType('image');
+      setIsPanelVisible(false);
     }
   };
 
@@ -97,6 +108,7 @@ function App() {
     const asciiText = drawVideoAscii(grayScales, width, getActiveAsciiString());
 
     setAsciiOutput(asciiText);
+    setCurrentTime(video.currentTime);
   }, [resolution, asciiMode, customChars]);
 
   // Video processing loop
@@ -113,19 +125,27 @@ function App() {
       const handleLoadedData = () => {
         // Seek to 0.1s to avoid potential black frame at 0.0s
         video.currentTime = 0.1;
+        setDuration(video.duration);
       };
       const handleSeeked = () => {
         renderFrame();
       };
+      const handleTimeUpdate = () => {
+        setCurrentTime(video.currentTime);
+      };
 
       video.addEventListener('loadeddata', handleLoadedData);
       video.addEventListener('seeked', handleSeeked);
-      
-      if (video.readyState >= 2) handleLoadedData();
+      video.addEventListener('timeupdate', handleTimeUpdate);
+
+      if (video.readyState >= 2) {
+        handleLoadedData();
+      }
 
       return () => {
         video.removeEventListener('loadeddata', handleLoadedData);
         video.removeEventListener('seeked', handleSeeked);
+        video.removeEventListener('timeupdate', handleTimeUpdate);
       };
     }
   }, [mediaUrl, mediaType, renderFrame]);
@@ -138,16 +158,34 @@ function App() {
 
   useEffect(() => {
     if (isPlaying && mediaType === 'video') {
-      videoRef.current?.play();
+      if (videoRef.current) {
+        videoRef.current.playbackRate = playbackSpeed;
+        videoRef.current.play();
+      }
       reqRef.current = requestAnimationFrame(processVideoFrame);
     } else if (mediaType === 'video') {
       videoRef.current?.pause();
       cancelAnimationFrame(reqRef.current);
     }
     return () => cancelAnimationFrame(reqRef.current);
-  }, [isPlaying, mediaType, processVideoFrame]);
+  }, [isPlaying, mediaType, processVideoFrame, playbackSpeed]);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
+
+  const handleSeek = (time) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+      if (!isPlaying) renderFrame();
+    }
+  };
+
+  const handleSpeedChange = (speed) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
 
   // Viewer Pan/Zoom
   const handleWheel = (e) => {
@@ -235,11 +273,20 @@ function App() {
     handleWheel, handleMouseDown, handleMouseMove, handleMouseUp
   };
 
+  const bottomPanelProps = {
+    isPlaying, togglePlay, currentTime, duration, handleSeek,
+    playbackSpeed, handleSpeedChange, isVisible: isPanelVisible,
+    onClose: () => setIsPanelVisible(false),
+    onOpen: () => setIsPanelVisible(true),
+    height: panelHeight, setHeight: setPanelHeight
+  };
+
   return (
     <>
       <Layout
         sidebar={<Sidebar {...sidebarProps} />}
         viewer={<AsciiViewer {...viewerProps} />}
+        bottomPanel={mediaType === 'video' && <BottomPanel {...bottomPanelProps} />}
         onHelpClick={() => setIsHelpOpen(true)}
       />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
