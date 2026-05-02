@@ -12,46 +12,7 @@ const AsciiViewer = ({
       {/* 3D Viewport Header */}
       <div className="h-6 bg-blender-header border-b border-blender-border flex items-center px-3 justify-between shadow-sm z-10 select-none">
         <div className="flex items-center gap-3">
-
-          {/* Tool modes */}
-          <div className="flex gap-1 bg-[#151515] p-0.5 rounded border border-blender-border">
-            <button
-              onClick={() => setActiveTool('pointer')}
-              className={`p-1 rounded ${activeTool === 'pointer' ? 'bg-blender-active text-white' : 'text-gray-400 hover:bg-blender-hover hover:text-white'}`}
-              title="Select Box"
-            >
-              <MousePointer2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool('move')}
-              className={`p-1 rounded ${activeTool === 'move' ? 'bg-blender-active text-white' : 'text-gray-400 hover:bg-blender-hover hover:text-white'}`}
-              title="Move / Pan"
-            >
-              <Move className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px bg-blender-border mx-0.5 my-1" />
-            <button
-              onClick={() => setZoom(z => Math.max(0.1, z - 0.02))}
-              className="p-1 rounded text-gray-400 hover:bg-blender-hover hover:text-white"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setZoom(z => Math.min(5, z + 0.02))}
-              className="p-1 rounded text-gray-400 hover:bg-blender-hover hover:text-white"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-              className="p-1 rounded text-gray-400 hover:bg-blender-hover hover:text-white"
-              title="Reset View"
-            >
-              <Maximize className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Viewport</span>
         </div>
 
         <div className="text-xs text-gray-500 font-mono flex gap-4">
@@ -78,6 +39,49 @@ const AsciiViewer = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
+        {/* Vertical Toolbar Strip (Blender Style) */}
+        <div className="absolute left-3 top-3 bottom-3 w-10 flex flex-col items-center py-2 gap-2 z-20 pointer-events-none">
+          <div className="bg-[#2a2a2a]/90 backdrop-blur-md border border-blender-border p-1 rounded-sm shadow-xl pointer-events-auto flex flex-col gap-1.5">
+            <button
+              onClick={() => setActiveTool('pointer')}
+              className={`p-1.5 rounded-sm transition-all ${activeTool === 'pointer' ? 'bg-blender-active text-white shadow-inner' : 'text-gray-400 hover:bg-blender-hover hover:text-white'}`}
+              title="Select Tool"
+            >
+              <MousePointer2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setActiveTool('move')}
+              className={`p-1.5 rounded-sm transition-all ${activeTool === 'move' ? 'bg-blender-active text-white shadow-inner' : 'text-gray-400 hover:bg-blender-hover hover:text-white'}`}
+              title="Move Tool"
+            >
+              <Move className="w-4 h-4" />
+            </button>
+
+            <div className="h-px bg-blender-border mx-1" />
+
+            <button
+              onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
+              className="p-1.5 rounded-sm text-gray-400 hover:bg-blender-hover hover:text-white"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setZoom(z => Math.min(5, z + 0.1))}
+              className="p-1.5 rounded-sm text-gray-400 hover:bg-blender-hover hover:text-white"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+              className="p-1.5 rounded-sm text-gray-400 hover:bg-blender-hover hover:text-white"
+              title="Reset View (Center)"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         {asciiOutput ? (
           <div
             className="absolute transform-gpu origin-center select-none"

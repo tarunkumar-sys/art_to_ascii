@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import AsciiViewer from './components/AsciiViewer';
 import HelpModal from './components/HelpModal';
 import BottomPanel from './components/BottomPanel';
+import ExportDropdown from './components/ExportDropdown';
 import { DEFAULT_ASCII, GRAY_RAMP_BALANCED, GRAY_RAMP_DARK, convertToGrayScales, drawVideoAscii, convertImageToAscii } from './utils/ascii-engine';
 
 function App() {
@@ -208,62 +209,14 @@ function App() {
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Exports
-  const downloadText = () => {
-    const blob = new Blob([asciiOutput], { type: 'text/plain;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'ascii-art.txt';
-    link.click();
-  };
 
-  const downloadImage = () => {
-    if (!asciiOutput) return;
-    const lines = asciiOutput.split('\n');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    const fontSize = 12;
-    ctx.font = `${fontSize}px monospace`;
-
-    let maxWidth = 0;
-    for (let line of lines) {
-      const metrics = ctx.measureText(line);
-      if (metrics.width > maxWidth) maxWidth = metrics.width;
-    }
-
-    canvas.width = maxWidth + 40;
-    canvas.height = (lines.length * (fontSize + 2)) + 40;
-
-    ctx.fillStyle = '#1c1c1c'; // Match blender bg
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#cccccc'; // Match blender text
-    ctx.textBaseline = 'top';
-    lines.forEach((line, index) => {
-      ctx.fillText(line, 20, 20 + (index * (fontSize + 2)));
-    });
-
-    const link = document.createElement('a');
-    link.download = 'ascii-art.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  };
-
-  const copyToClipboard = () => navigator.clipboard.writeText(asciiOutput);
-
-  const copyEmbeddableCode = () => {
-    const code = `\`\`\`text\n${asciiOutput}\n\`\`\``;
-    navigator.clipboard.writeText(code);
-    alert('Markdown code copied!');
-  };
 
   // Build the props for components
   const sidebarProps = {
     mediaUrl, mediaType, videoRef, isPlaying, togglePlay, handleFileUpload,
     asciiMode, setAsciiMode, customChars, setCustomChars,
     resolution, setResolution,
-    downloadText, downloadImage, copyToClipboard, copyEmbeddableCode
+    zoom, setZoom, pan, setPan, activeTool, setActiveTool
   };
 
   const viewerProps = {
@@ -287,6 +240,9 @@ function App() {
         sidebar={<Sidebar {...sidebarProps} />}
         viewer={<AsciiViewer {...viewerProps} />}
         bottomPanel={mediaType === 'video' && <BottomPanel {...bottomPanelProps} />}
+        exportDropdown={
+          <ExportDropdown asciiOutput={asciiOutput} />
+        }
         onHelpClick={() => setIsHelpOpen(true)}
       />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />

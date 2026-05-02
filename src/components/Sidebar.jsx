@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import {
   ChevronDown, ChevronRight, FolderOpen, Play, Pause,
   Camera, Download, Copy, Code, Type, Settings2,
-  Box, Image as ImageIcon
+  Box, Image as ImageIcon, Sliders, MousePointer2, Move, ZoomIn, ZoomOut, Maximize,
+  Wrench, Globe, Database
 } from 'lucide-react';
 
 const CollapsiblePanel = ({ title, icon: Icon, children, defaultOpen = true }) => {
@@ -39,152 +40,208 @@ const Sidebar = ({
   isPlaying, togglePlay, handleFileUpload,
   asciiMode, setAsciiMode, customChars, setCustomChars,
   resolution, setResolution,
-  downloadText, downloadImage, copyToClipboard, copyEmbeddableCode
+  zoom, setZoom, pan, setPan, activeTool, setActiveTool
 }) => {
-  return (
-    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden blender-scrollbar bg-blender-panel">
+  const [activeTab, setActiveTab] = useState('render');
 
-      {/* Search Bar Placeholder */}
-      <div className="p-2 border-b border-blender-border bg-blender-header">
-        <div className="flex items-center bg-blender-input border border-blender-border rounded-sm px-2 py-0.5">
-          <Settings2 className="w-3 h-3 mr-2 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search properties..."
-            className="bg-transparent border-none outline-none text-[10px] text-gray-300 w-full placeholder:text-gray-600"
-            disabled
-          />
-        </div>
+  const tabs = [
+    { id: 'render', icon: Camera, tooltip: 'Render Properties' },
+    { id: 'media', icon: ImageIcon, tooltip: 'Source Media' },
+    { id: 'tools', icon: MousePointer2, tooltip: 'Viewport Tools' },
+    { id: 'data', icon: Database, tooltip: 'Object Data' },
+    { id: 'modifiers', icon: Wrench, tooltip: 'Modifiers' },
+    { id: 'world', icon: Globe, tooltip: 'World Properties' }
+  ];
+
+  return (
+    <div className="flex h-full overflow-hidden bg-blender-panel">
+      {/* Vertical Icon Strip (Blender Style) */}
+      <div className="w-10 border-r border-blender-border bg-blender-header/50 flex flex-col items-center py-2 gap-1 select-none">
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            title={tab.tooltip}
+            className={`p-2 cursor-pointer transition-all relative group ${
+              activeTab === tab.id 
+                ? 'text-white' 
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {activeTab === tab.id && (
+              <div className="absolute left-0 top-1 bottom-1 w-0.5 bg-blender-active" />
+            )}
+            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'drop-shadow-[0_0_8px_rgba(75,137,234,0.5)]' : ''}`} />
+            
+            {/* Tooltip on hover */}
+            <div className="absolute left-full ml-2 px-2 py-1 bg-[#1a1a1a] text-white text-[9px] rounded-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 border border-blender-border shadow-xl transition-opacity">
+               {tab.tooltip}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <CollapsiblePanel title="Source Media">
-        <div className="space-y-3">
-          <label
-            className="flex items-center justify-center w-full bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm py-4 cursor-pointer group transition-all shadow-inner"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              handleFileUpload(e);
-            }}
-          >
-            <input type="file" className="hidden" accept="image/*,video/mp4,video/mov,image/gif" onChange={handleFileUpload} />
-            <div className="flex flex-col items-center">
-              <FolderOpen className="w-5 h-5 mb-1 text-blender-active group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-white">Open Data</span>
-            </div>
-          </label>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden blender-scrollbar">
+        {activeTab === 'render' && (
+          <CollapsiblePanel title="Render Settings">
+            <div className="space-y-3">
+              <PropertyRow label="Sampling Mode">
+                <div className="flex rounded-sm border border-blender-border overflow-hidden shadow-sm">
+                  {['custom', 'balanced', 'dark'].map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setAsciiMode(mode)}
+                      className={`flex-1 py-1 px-1 text-[10px] font-bold capitalize transition-colors ${asciiMode === mode
+                        ? 'bg-blender-active text-white shadow-inner'
+                        : 'bg-blender-input text-gray-500 hover:text-gray-300'
+                        }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </PropertyRow>
 
-          {mediaUrl && (
-            <div className="space-y-2">
-              <div className="border border-blender-border rounded-sm bg-black relative shadow-lg overflow-hidden group">
-                <div className="aspect-video flex items-center justify-center">
-                  {mediaType === 'video' ? (
-                    <video ref={videoRef} src={mediaUrl} className="max-h-full max-w-full" loop muted playsInline />
-                  ) : (
-                    <img src={mediaUrl} className="max-h-full max-w-full" alt="Source" />
-                  )}
+              {asciiMode === 'custom' && (
+                <PropertyRow label="Character Ramp">
+                  <input
+                    type="text"
+                    value={customChars}
+                    onChange={(e) => setCustomChars(e.target.value)}
+                    className="w-full bg-blender-input border border-blender-border text-blender-accent font-mono text-[10px] px-2 py-1 rounded-sm outline-none focus:border-blender-active shadow-inner"
+                  />
+                </PropertyRow>
+              )}
+
+              <PropertyRow label="Resolution">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-blender-input border border-blender-border rounded-sm h-5 relative flex items-center px-1 overflow-hidden">
+                    <div
+                      className="absolute left-0 top-0 bottom-0 bg-blender-active/20"
+                      style={{ width: `${(resolution / 3) * 100}%` }}
+                    />
+                    <input
+                      type="range" min="1" max="3" step="0.1"
+                      value={resolution}
+                      onChange={(e) => setResolution(parseFloat(e.target.value))}
+                      className="absolute inset-0 w-full opacity-0 cursor-ew-resize"
+                    />
+                    <span className="relative text-[9px] text-gray-300 font-bold ml-auto pointer-events-none">
+                      {resolution.toFixed(1)}x
+                    </span>
+                  </div>
+                </div>
+              </PropertyRow>
+            </div>
+          </CollapsiblePanel>
+        )}
+
+        {activeTab === 'media' && (
+          <CollapsiblePanel title="Media Source">
+            <div className="space-y-3">
+              <label
+                className="flex items-center justify-center w-full bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm py-4 cursor-pointer group transition-all shadow-inner"
+              >
+                <input type="file" className="hidden" accept="image/*,video/mp4,video/mov,image/gif" onChange={handleFileUpload} />
+                <div className="flex flex-col items-center">
+                  <FolderOpen className="w-5 h-5 mb-1 text-blender-active group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-white">Open File</span>
+                </div>
+              </label>
+
+              {mediaUrl && (
+                <div className="space-y-2">
+                  <div className="border border-blender-border rounded-sm bg-black relative shadow-lg overflow-hidden group">
+                    <div className="aspect-video flex items-center justify-center">
+                      {mediaType === 'video' ? (
+                        <video ref={videoRef} src={mediaUrl} className="max-h-full max-w-full" loop muted playsInline />
+                      ) : (
+                        <img src={mediaUrl} className="max-h-full max-w-full" alt="Source" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[9px] text-gray-500 truncate max-w-[120px]">{mediaUrl.split('/').pop()}</span>
+                    <span className="text-[9px] text-blender-active uppercase font-bold">{mediaType}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsiblePanel>
+        )}
+
+        {activeTab === 'tools' && (
+          <CollapsiblePanel title="Viewport Tools">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Active Tool</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setActiveTool('pointer')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border transition-all ${
+                      activeTool === 'pointer' 
+                        ? 'bg-blender-active border-blue-400/30 text-white' 
+                        : 'bg-blender-input border-blender-border text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <MousePointer2 className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">Select</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTool('move')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border transition-all ${
+                      activeTool === 'move' 
+                        ? 'bg-blender-active border-blue-400/30 text-white' 
+                        : 'bg-blender-input border-blender-border text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <Move className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">Move</span>
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      </CollapsiblePanel>
 
-      <CollapsiblePanel title="Render Properties">
-        <div className="space-y-3">
-          <PropertyRow label="Sampling Mode">
-            <div className="flex rounded-sm border border-blender-border overflow-hidden shadow-sm">
-              {['custom', 'balanced', 'dark'].map((mode) => (
+              <div className="space-y-2 pt-2 border-t border-blender-border">
+                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">View Navigation</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
+                    className="flex items-center gap-2 px-2 py-1.5 bg-blender-input border border-blender-border rounded-sm text-gray-400 hover:text-gray-200 transition-all"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">Out</span>
+                  </button>
+                  <button
+                    onClick={() => setZoom(z => Math.min(5, z + 0.1))}
+                    className="flex items-center gap-2 px-2 py-1.5 bg-blender-input border border-blender-border rounded-sm text-gray-400 hover:text-gray-200 transition-all"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">In</span>
+                  </button>
+                </div>
                 <button
-                  key={mode}
-                  onClick={() => setAsciiMode(mode)}
-                  className={`flex-1 py-1 px-1 text-[10px] font-bold capitalize transition-colors ${asciiMode === mode
-                    ? 'bg-blender-active text-white shadow-inner'
-                    : 'bg-blender-input text-gray-500 hover:text-gray-300'
-                    }`}
+                  onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+                  className="w-full flex items-center justify-center gap-2 px-2 py-1.5 bg-blender-input border border-blender-border rounded-sm text-gray-400 hover:text-gray-200 transition-all"
                 >
-                  {mode}
+                  <Maximize className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-medium uppercase tracking-widest">Reset Viewport</span>
                 </button>
-              ))}
-            </div>
-          </PropertyRow>
-
-          {asciiMode === 'custom' && (
-            <PropertyRow label="Character Ramp">
-              <input
-                type="text"
-                value={customChars}
-                onChange={(e) => setCustomChars(e.target.value)}
-                className="w-full bg-blender-input border border-blender-border text-blender-accent font-mono text-[10px] px-2 py-1 rounded-sm outline-none focus:border-blender-active shadow-inner"
-              />
-            </PropertyRow>
-          )}
-
-          <PropertyRow label="Resolution">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-blender-input border border-blender-border rounded-sm h-5 relative flex items-center px-1 overflow-hidden">
-                <div
-                  className="absolute left-0 top-0 bottom-0 bg-blender-active/20"
-                  style={{ width: `${(resolution / 3) * 100}%` }}
-                />
-                <input
-                  type="range" min="1" max="3" step="0.1"
-                  value={resolution}
-                  onChange={(e) => setResolution(parseFloat(e.target.value))}
-                  className="absolute inset-0 w-full opacity-0 cursor-ew-resize"
-                />
-                <span className="relative text-[9px] text-gray-300 font-bold ml-auto pointer-events-none">
-                  {resolution.toFixed(1)}x
-                </span>
               </div>
             </div>
-          </PropertyRow>
-        </div>
-      </CollapsiblePanel>
+          </CollapsiblePanel>
+        )}
 
-      <CollapsiblePanel title="Output">
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            onClick={downloadImage}
-            className="flex items-center gap-2 px-2 py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm transition-all group"
-          >
-            <Camera className="w-3.5 h-3.5 text-gray-400 group-hover:text-blender-active" />
-            <span className="text-[10px] text-gray-400 group-hover:text-white font-medium">Image</span>
-          </button>
-          <button
-            onClick={downloadText}
-            className="flex items-center gap-2 px-2 py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm transition-all group"
-          >
-            <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-blender-active" />
-            <span className="text-[10px] text-gray-400 group-hover:text-white font-medium">Text</span>
-          </button>
-          <button
-            onClick={copyToClipboard}
-            className="flex items-center gap-2 px-2 py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm transition-all group"
-          >
-            <Copy className="w-3.5 h-3.5 text-gray-400 group-hover:text-blender-active" />
-            <span className="text-[10px] text-gray-400 group-hover:text-white font-medium">Copy</span>
-          </button>
-          <button
-            onClick={copyEmbeddableCode}
-            className="flex items-center gap-2 px-2 py-1.5 bg-blender-input hover:bg-blender-hover border border-blender-border rounded-sm transition-all group"
-          >
-            <Code className="w-3.5 h-3.5 text-gray-400 group-hover:text-blender-active" />
-            <span className="text-[10px] text-gray-400 group-hover:text-white font-medium">Embed</span>
-          </button>
-        </div>
-      </CollapsiblePanel>
-
-      {/* Info panel at bottom */}
-      <div className="mt-auto p-4 border-t border-blender-border bg-blender-header/30">
-        <div className="flex items-center gap-2 opacity-50">
-          <ImageIcon className="w-3 h-3" />
-          <span className="text-[9px] uppercase font-bold tracking-widest text-gray-500">Workspace: Studio</span>
-        </div>
+        {(activeTab === 'data' || activeTab === 'modifiers' || activeTab === 'world') && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center opacity-30">
+             <Sliders className="w-12 h-12 mb-2" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Tab Not Available</span>
+            <span className="text-[9px] mt-1">This context is not applicable for ASCII Art.</span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default Sidebar;
-
