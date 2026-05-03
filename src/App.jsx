@@ -5,177 +5,216 @@ import AsciiViewer from './components/AsciiViewer';
 import HelpModal from './components/HelpModal';
 import BottomPanel from './components/BottomPanel';
 import ExportDropdown from './components/ExportDropdown';
-import { DEFAULT_ASCII, GRAY_RAMP_BALANCED, GRAY_RAMP_DARK, convertToGrayScales, drawVideoAscii, convertImageToAscii } from './utils/ascii-engine';
+import MediaSource from './components/MediaSource';
+import {
+  DEFAULT_ASCII,
+  convertToGrayScales,
+  drawVideoAscii,
+  convertImageToAscii,
+} from './utils/ascii-engine';
 
 function App() {
-  const [mediaFile, setMediaFile] = useState(null);
-  const [mediaType, setMediaType] = useState(''); // 'image' or 'video'
-  const [mediaUrl, setMediaUrl] = useState('');
+  // ── Media state ──────────────────────────────────────────────────────────
+  const [mediaType,  setMediaType]  = useState('');   // 'image' | 'video' | 'webcam'
+  const [mediaUrl,   setMediaUrl]   = useState('');
 
-  // Settings
-  const [asciiMode, setAsciiMode] = useState('custom'); // custom, balanced, dark
+  // ── Render: character settings ───────────────────────────────────────────
+  const [asciiMode,   setAsciiMode]   = useState('custom');
   const [customChars, setCustomChars] = useState(DEFAULT_ASCII);
-  const [resolution, setResolution] = useState(3); // 1 to 3 for video
+  const [resolution,  setResolution]  = useState(2);
 
-  // Video Playback
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  // ── Render: new visual options ───────────────────────────────────────────
+  const [invertBrightness,      setInvertBrightness]      = useState(false);
+  const [coloredAscii,          setColoredAscii]           = useState(false);
+  const [edgeDetection,         setEdgeDetection]          = useState(false);
+  const [edgeThreshold,         setEdgeThreshold]          = useState(0.3);
+  const [brightness,            setBrightness]             = useState(1.0);
+  const [contrast,              setContrast]               = useState(1.0);
+  const [aspectRatioCorrection, setAspectRatioCorrection]  = useState(true);
+  const [asciiColor,            setAsciiColor]             = useState('#ffffff');
+  const [asciiOpacity,          setAsciiOpacity]           = useState(100);
+  const [recentColors,          setRecentColors]           = useState(['#ffffff', '#000000']);
 
-  // Output
+  // ── Source: URL fetch ────────────────────────────────────────────────────
+  const [mediaUrlInput,  setMediaUrlInput]  = useState('');
+  const [isFetchingUrl,  setIsFetchingUrl]  = useState(false);
+  const [fetchError,     setFetchError]     = useState('');
+
+  // ── Video playback ───────────────────────────────────────────────────────
+  const [isPlaying,      setIsPlaying]      = useState(false);
+  const [currentTime,    setCurrentTime]    = useState(0);
+  const [duration,       setDuration]       = useState(0);
+  const [playbackSpeed,  setPlaybackSpeed]  = useState(1);
+
+  // ── Output ───────────────────────────────────────────────────────────────
   const [asciiOutput, setAsciiOutput] = useState('');
 
-  // Panel State
-  const [panelHeight, setPanelHeight] = useState(110);
+  // ── Panel state ──────────────────────────────────────────────────────────
+  const [panelHeight,    setPanelHeight]    = useState(110);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
 
-  // Zoom/Pan for viewer
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // ── Viewport ─────────────────────────────────────────────────────────────
+  const [zoom,       setZoom]       = useState(1);
+  const [pan,        setPan]        = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [activeTool, setActiveTool] = useState('move'); // 'pointer' or 'move'
+  const [dragStart,  setDragStart]  = useState({ x: 0, y: 0 });
+  const [activeTool, setActiveTool] = useState('move');
 
-  // Modal State
+  // ── Modal ────────────────────────────────────────────────────────────────
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  const videoRef = useRef(null);
+  // ── Refs ─────────────────────────────────────────────────────────────────
+  const mediaSourceRef   = useRef(null);
   const previewCanvasRef = useRef(null);
-  const reqRef = useRef();
+  const reqRef           = useRef();
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
-    if (!file) return;
-
-    if (mediaUrl) URL.revokeObjectURL(mediaUrl);
-
-    const url = URL.createObjectURL(file);
-    setMediaUrl(url);
-    setMediaFile(file);
-    setAsciiOutput('');
-    setIsPlaying(false);
-    setCurrentTime(0);
-
-    if (file.type.startsWith('video/')) {
-      setMediaType('video');
-      setIsPanelVisible(true);
-    } else {
-      setMediaType('image');
-      setIsPanelVisible(false);
-    }
+  // ── Render option bundle (passed to ascii-engine) ────────────────────────
+  const renderOpts = {
+    invertBrightness,
+    brightness,
+    contrast,
+    edgeDetection,
+    edgeThreshold,
+    coloredAscii,
+    aspectRatioCorrection,
   };
 
-  const getActiveAsciiString = () => {
-    if (asciiMode === 'balanced') return GRAY_RAMP_BALANCED;
-    if (asciiMode === 'dark') return GRAY_RAMP_DARK;
+  // ── Active ASCII string ──────────────────────────────────────────────────
+  const getActiveAsciiString = useCallback(() => {
+    if (asciiMode === 'balanced') return '$@08GCLft1i;:.,:;i1tfLCG0 ';
+    if (asciiMode === 'dark')     return '$@08;:.,:;i1tfLCG0 ';
     return customChars || DEFAULT_ASCII;
-  };
+  }, [asciiMode, customChars]);
 
-  // Image processing
-  const processImage = useCallback(() => {
-    if (!mediaUrl || mediaType !== 'image') return;
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const w = Math.floor(100 + resolution * 133);
-      const h = w;
-      const result = convertImageToAscii(img, getActiveAsciiString(), w, h);
-      setAsciiOutput(result);
-    };
-    img.src = mediaUrl;
-  }, [mediaUrl, mediaType, asciiMode, customChars, resolution]);
-
+  // ── Processing Logic ─────────────────────────────────────────────────────
   const renderFrame = useCallback(() => {
-    if (!videoRef.current || !previewCanvasRef.current) return;
+    const { videoElement, imageElement, activeType } = mediaSourceRef.current || {};
+    if (!previewCanvasRef.current) return;
 
-    const video = videoRef.current;
     const canvas = previewCanvasRef.current;
     const ctx = canvas.getContext('2d');
+    const asciiStr = getActiveAsciiString();
 
-    const multiplier = 4 - resolution;
-    const baseWidth = Math.floor(window.innerWidth / 3 / multiplier);
-    const width = Math.min(baseWidth, 150);
-    const horizontalWidth = (video.videoHeight / video.videoWidth) * width;
-    const height = horizontalWidth || 100; // fallback height
+    if (activeType === 'image' && imageElement) {
+      const w = Math.floor(80 + resolution * 80);
+      // Double the target height if aspect correction is on, 
+      // because the engine will scale it by 0.5 to fit monospace chars.
+      const h = aspectRatioCorrection ? w * 2 : w; 
+      const result = convertImageToAscii(imageElement, asciiStr, w, h, renderOpts);
+      setAsciiOutput(result);
+    } else if ((activeType === 'video' || activeType === 'webcam') && videoElement) {
+      const multiplier = 4 - resolution;
+      const baseWidth = Math.floor(window.innerWidth / 3 / multiplier);
+      const width = Math.min(baseWidth, 200); 
+      let height = Math.round((videoElement.videoHeight / videoElement.videoWidth) * width) || 80;
+      
+      // Similarly for video, if correction is on, we need more "rows" of characters 
+      // to maintain the visual aspect ratio.
+      const processHeight = aspectRatioCorrection ? height * 2 : height;
 
-    if (isNaN(width) || isNaN(height) || width === 0 || height === 0) return;
+      if (!width || !height || isNaN(width) || isNaN(height)) return;
 
-    canvas.width = width;
-    canvas.height = height;
+      canvas.width = width;
+      canvas.height = processHeight;
+      ctx.drawImage(videoElement, 0, 0, width, processHeight);
 
-    ctx.drawImage(video, 0, 0, width, height);
-    const grayScales = convertToGrayScales(ctx, width, height);
-    const asciiText = drawVideoAscii(grayScales, width, getActiveAsciiString());
+      const grayScales = convertToGrayScales(ctx, width, processHeight, {
+        invertBrightness,
+        brightness,
+        contrast,
+      });
+      const asciiText = drawVideoAscii(grayScales, width, asciiStr);
+      setAsciiOutput(asciiText);
+      
+      if (activeType === 'video') setCurrentTime(videoElement.currentTime);
+    }
+  }, [resolution, getActiveAsciiString, invertBrightness, brightness, contrast, renderOpts]);
 
-    setAsciiOutput(asciiText);
-    setCurrentTime(video.currentTime);
-  }, [resolution, asciiMode, customChars]);
-
-  // Video processing loop
-  const processVideoFrame = useCallback(() => {
-    if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
-    renderFrame();
-    reqRef.current = requestAnimationFrame(processVideoFrame);
+  const processLoop = useCallback(() => {
+    const type = mediaSourceRef.current?.activeType;
+    if (type === 'video' || type === 'webcam') {
+      const video = mediaSourceRef.current.videoElement;
+      if (video && (type === 'webcam' || (!video.paused && !video.ended))) {
+        renderFrame();
+      }
+      reqRef.current = requestAnimationFrame(processLoop);
+    } else if (type === 'image') {
+      renderFrame();
+    }
   }, [renderFrame]);
 
-  // Initial video frame preview
-  useEffect(() => {
-    if (mediaType === 'video' && videoRef.current) {
-      const video = videoRef.current;
-      const handleLoadedData = () => {
-        // Seek to 0.1s to avoid potential black frame at 0.0s
-        video.currentTime = 0.1;
-        setDuration(video.duration);
-      };
-      const handleSeeked = () => {
-        renderFrame();
-      };
-      const handleTimeUpdate = () => {
-        setCurrentTime(video.currentTime);
-      };
-
-      video.addEventListener('loadeddata', handleLoadedData);
-      video.addEventListener('seeked', handleSeeked);
-      video.addEventListener('timeupdate', handleTimeUpdate);
-
-      if (video.readyState >= 2) {
-        handleLoadedData();
+  // ── Media Callbacks ──────────────────────────────────────────────────────
+  const handleMediaReady = useCallback((type) => {
+    setMediaType(type);
+    setFetchError('');
+    setIsFetchingUrl(false);
+    
+    // Explicitly trigger a render for images or start the loop for video
+    if (type === 'image') {
+      // Delay slightly to ensure image is truly ready for canvas drawing
+      setTimeout(renderFrame, 50);
+      setIsPlaying(false);
+      setIsPanelVisible(false);
+    } else if (type === 'video' || type === 'webcam') {
+      const video = mediaSourceRef.current?.videoElement;
+      if (video) {
+        setDuration(video.duration || 0);
+        setIsPlaying(true);
+        setIsPanelVisible(type === 'video');
       }
-
-      return () => {
-        video.removeEventListener('loadeddata', handleLoadedData);
-        video.removeEventListener('seeked', handleSeeked);
-        video.removeEventListener('timeupdate', handleTimeUpdate);
-      };
     }
-  }, [mediaUrl, mediaType, renderFrame]);
+  }, [renderFrame]);
+
+  const handleFetchError = useCallback((err) => {
+    setFetchError(err);
+    setIsFetchingUrl(false);
+    setMediaType('');
+  }, []);
+
+  const handleFileUpload = (e) => {
+    const file = e.target?.files?.[0] || e.dataTransfer?.files?.[0];
+    if (file) {
+      mediaSourceRef.current?.loadFromFile(file);
+    }
+  };
+
+  const fetchMediaUrl = () => {
+    if (!mediaUrlInput.trim()) return;
+    setIsFetchingUrl(true);
+    setFetchError('');
+    mediaSourceRef.current?.loadFromUrl(mediaUrlInput.trim());
+  };
+
+  const startWebcam = () => mediaSourceRef.current?.startWebcam();
+  const stopWebcam = () => {
+    mediaSourceRef.current?.stopWebcam();
+    setMediaType('');
+    setIsPlaying(false);
+  };
 
   useEffect(() => {
-    if (mediaType === 'image') {
-      processImage();
-    }
-  }, [mediaUrl, mediaType, processImage, asciiMode, customChars, resolution]);
-
-  useEffect(() => {
-    if (isPlaying && mediaType === 'video') {
-      if (videoRef.current) {
-        videoRef.current.playbackRate = playbackSpeed;
-        videoRef.current.play();
-      }
-      reqRef.current = requestAnimationFrame(processVideoFrame);
-    } else if (mediaType === 'video') {
-      videoRef.current?.pause();
+    if (isPlaying || mediaType === 'image') {
+      reqRef.current = requestAnimationFrame(processLoop);
+    } else {
       cancelAnimationFrame(reqRef.current);
     }
     return () => cancelAnimationFrame(reqRef.current);
-  }, [isPlaying, mediaType, processVideoFrame, playbackSpeed]);
+  }, [isPlaying, mediaType, processLoop]);
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  // ── Playback helpers ─────────────────────────────────────────────────────
+  const togglePlay = () => {
+    const video = mediaSourceRef.current?.videoElement;
+    if (video) {
+      if (isPlaying) video.pause();
+      else video.play();
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   const handleSeek = (time) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
+    const video = mediaSourceRef.current?.videoElement;
+    if (video) {
+      video.currentTime = time;
       setCurrentTime(time);
       if (!isPlaying) renderFrame();
     }
@@ -183,19 +222,17 @@ function App() {
 
   const handleSpeedChange = (speed) => {
     setPlaybackSpeed(speed);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-    }
+    const video = mediaSourceRef.current?.videoElement;
+    if (video) video.playbackRate = speed;
   };
 
-  // Viewer Pan/Zoom
+  // ── Viewport Helpers ─────────────────────────────────────────────────────
   const handleWheel = (e) => {
     e.preventDefault();
     setZoom(z => Math.max(0.1, Math.min(5, z - e.deltaY * 0.0005)));
   };
 
   const handleMouseDown = (e) => {
-    // Left click only pans if Move tool is active. Middle click always pans.
     if ((e.button === 0 && activeTool === 'move') || e.button === 1) {
       setIsDragging(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -209,29 +246,45 @@ function App() {
 
   const handleMouseUp = () => setIsDragging(false);
 
-
-
-  // Build the props for components
+  // ── Props ────────────────────────────────────────────────────────────────
   const sidebarProps = {
-    mediaUrl, mediaType, videoRef, isPlaying, togglePlay, handleFileUpload,
-    asciiMode, setAsciiMode, customChars, setCustomChars,
+    mediaUrl, mediaType, 
+    videoRef: { current: mediaSourceRef.current?.videoElement }, // For preview in Sidebar
+    handleFileUpload,
+    asciiMode, setAsciiMode,
+    customChars, setCustomChars,
     resolution, setResolution,
-    zoom, setZoom, pan, setPan, activeTool, setActiveTool
+    invertBrightness, setInvertBrightness,
+    coloredAscii, setColoredAscii,
+    edgeDetection, setEdgeDetection,
+    edgeThreshold, setEdgeThreshold,
+    brightness, setBrightness,
+    contrast, setContrast,
+    aspectRatioCorrection, setAspectRatioCorrection,
+    asciiColor, setAsciiColor,
+    asciiOpacity, setAsciiOpacity,
+    recentColors, setRecentColors,
+    isWebcam: mediaType === 'webcam',
+    startWebcam, stopWebcam,
+    mediaUrlInput, setMediaUrlInput,
+    fetchMediaUrl, isFetchingUrl, fetchError,
   };
 
   const viewerProps = {
-    asciiOutput, mediaType, previewCanvasRef,
+    asciiOutput, coloredAscii, mediaType, previewCanvasRef,
     zoom, setZoom, pan, setPan, isDragging,
     activeTool, setActiveTool,
-    handleWheel, handleMouseDown, handleMouseMove, handleMouseUp
+    handleWheel, handleMouseDown, handleMouseMove, handleMouseUp,
+    asciiColor, asciiOpacity,
   };
 
   const bottomPanelProps = {
     isPlaying, togglePlay, currentTime, duration, handleSeek,
-    playbackSpeed, handleSpeedChange, isVisible: isPanelVisible,
+    playbackSpeed, handleSpeedChange,
+    isVisible: isPanelVisible,
     onClose: () => setIsPanelVisible(false),
-    onOpen: () => setIsPanelVisible(true),
-    height: panelHeight, setHeight: setPanelHeight
+    onOpen:  () => setIsPanelVisible(true),
+    height: panelHeight, setHeight: setPanelHeight,
   };
 
   return (
@@ -240,10 +293,13 @@ function App() {
         sidebar={<Sidebar {...sidebarProps} />}
         viewer={<AsciiViewer {...viewerProps} />}
         bottomPanel={mediaType === 'video' && <BottomPanel {...bottomPanelProps} />}
-        exportDropdown={
-          <ExportDropdown asciiOutput={asciiOutput} />
-        }
+        exportDropdown={<ExportDropdown asciiOutput={asciiOutput} coloredAscii={coloredAscii} />}
         onHelpClick={() => setIsHelpOpen(true)}
+      />
+      <MediaSource 
+        ref={mediaSourceRef} 
+        onMediaReady={handleMediaReady}
+        onFetchError={handleFetchError}
       />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </>
@@ -251,3 +307,4 @@ function App() {
 }
 
 export default App;
+

@@ -162,7 +162,7 @@ const BottomPanel = ({
 
           {/* Header bar */}
           <div className="h-8 bg-blender-header border-b border-blender-border flex items-center px-3 shrink-0 gap-4">
-            
+
             {/* Left: Spacer to ensure absolute centering of the middle section */}
             <div className="flex-1" />
 
