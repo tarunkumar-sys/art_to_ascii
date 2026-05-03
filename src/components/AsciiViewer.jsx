@@ -30,7 +30,7 @@ const AsciiViewer = ({
              linear-gradient(to right, #222 1px, transparent 1px),
              linear-gradient(to bottom, #222 1px, transparent 1px)
            `,
-          backgroundSize: `${40 * zoom}px ${40 * zoom}px`,
+          backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
           backgroundPosition: `${pan.x}px ${pan.y}px`
         }}
         onWheel={handleWheel}
