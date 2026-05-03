@@ -6,6 +6,8 @@ import HelpModal from './components/HelpModal';
 import BottomPanel from './components/BottomPanel';
 import ExportDropdown from './components/ExportDropdown';
 import MediaSource from './components/MediaSource';
+import ShortcutsDropdown from './components/ShortcutsDropdown';
+import { HelpCircle } from 'lucide-react';
 import {
   DEFAULT_ASCII,
   convertToGrayScales,
@@ -30,9 +32,11 @@ function App() {
   const [edgeThreshold,         setEdgeThreshold]          = useState(0.3);
   const [brightness,            setBrightness]             = useState(1.0);
   const [contrast,              setContrast]               = useState(1.0);
-  const [aspectRatioCorrection, setAspectRatioCorrection]  = useState(true);
+  const [aspectRatioCorrection, setAspectRatioCorrection]  = useState(false);
   const [asciiColor,            setAsciiColor]             = useState('#ffffff');
   const [asciiOpacity,          setAsciiOpacity]           = useState(100);
+  const [fontFamily,            setFontFamily]             = useState('monospace');
+  const [totalChars,            setTotalChars]             = useState(0);
   const [recentColors,          setRecentColors]           = useState(['#ffffff', '#000000']);
 
   // ── Source: URL fetch ────────────────────────────────────────────────────
@@ -53,6 +57,14 @@ function App() {
   const [panelHeight,    setPanelHeight]    = useState(110);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
 
+  // ── Trim region (saved from BottomPanel trim tool) ────────────────────────
+  const [trimRegion, setTrimRegion] = useState(null); // { startTime, endTime }
+
+  const handleSaveTrim = useCallback(({ startTime, endTime }) => {
+    setTrimRegion({ startTime, endTime });
+    console.log('[Trim] Saved region:', { startTime, endTime });
+  }, []);
+
   // ── Viewport ─────────────────────────────────────────────────────────────
   const [zoom,       setZoom]       = useState(1);
   const [pan,        setPan]        = useState({ x: 0, y: 0 });
@@ -62,10 +74,12 @@ function App() {
 
   // ── Modal ────────────────────────────────────────────────────────────────
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const mediaSourceRef   = useRef(null);
   const previewCanvasRef = useRef(null);
+  const mediaAspectRef   = useRef(1);
   const reqRef           = useRef();
 
   // ── Render option bundle (passed to ascii-engine) ────────────────────────
@@ -77,6 +91,7 @@ function App() {
     edgeThreshold,
     coloredAscii,
     aspectRatioCorrection,
+    fontFamily,
   };
 
   // ── Active ASCII string ──────────────────────────────────────────────────
@@ -96,39 +111,55 @@ function App() {
     const asciiStr = getActiveAsciiString();
 
     if (activeType === 'image' && imageElement) {
-      const w = Math.floor(80 + resolution * 80);
-      // Double the target height if aspect correction is on, 
-      // because the engine will scale it by 0.5 to fit monospace chars.
-      const h = aspectRatioCorrection ? w * 2 : w; 
+      const w = Math.floor(60 + resolution * 60);
+      // Correct for original image aspect ratio
+      const aspect = imageElement.naturalHeight / imageElement.naturalWidth;
+      mediaAspectRef.current = aspect;
+      let h = Math.round(w * aspect);
+      // Further correct for monospace character aspect (height approx 2x width)
+      if (aspectRatioCorrection) h = Math.round(h * 2);
+      
       const result = convertImageToAscii(imageElement, asciiStr, w, h, renderOpts);
       setAsciiOutput(result);
+      setTotalChars(w * h);
     } else if ((activeType === 'video' || activeType === 'webcam') && videoElement) {
       const multiplier = 4 - resolution;
-      const baseWidth = Math.floor(window.innerWidth / 3 / multiplier);
-      const width = Math.min(baseWidth, 200); 
-      let height = Math.round((videoElement.videoHeight / videoElement.videoWidth) * width) || 80;
+      const baseWidth = Math.floor(window.innerWidth / 4 / multiplier);
+      const width = Math.min(baseWidth, 250); 
       
-      // Similarly for video, if correction is on, we need more "rows" of characters 
-      // to maintain the visual aspect ratio.
-      const processHeight = aspectRatioCorrection ? height * 2 : height;
+      const vW = videoElement.videoWidth || 1;
+      const vH = videoElement.videoHeight || 1;
+      const aspect = vH / vW;
+      mediaAspectRef.current = aspect;
+      
+      let height = Math.round(width * aspect);
+      // Further correct for monospace character aspect (height approx 2x width)
+      const processHeight = aspectRatioCorrection ? Math.round(height * 2) : height;
 
-      if (!width || !height || isNaN(width) || isNaN(height)) return;
+      if (!width || !processHeight || isNaN(width) || isNaN(processHeight)) return;
 
       canvas.width = width;
       canvas.height = processHeight;
       ctx.drawImage(videoElement, 0, 0, width, processHeight);
 
-      const grayScales = convertToGrayScales(ctx, width, processHeight, {
-        invertBrightness,
-        brightness,
-        contrast,
-      });
-      const asciiText = drawVideoAscii(grayScales, width, asciiStr);
-      setAsciiOutput(asciiText);
+      if (coloredAscii) {
+        const imageData = ctx.getImageData(0, 0, width, processHeight);
+        const asciiText = drawVideoAscii(imageData.data, width, asciiStr, true);
+        setAsciiOutput(asciiText);
+      } else {
+        const grayScales = convertToGrayScales(ctx, width, processHeight, {
+          invertBrightness,
+          brightness,
+          contrast,
+        });
+        const asciiText = drawVideoAscii(grayScales, width, asciiStr, false);
+        setAsciiOutput(asciiText);
+      }
+      setTotalChars(width * processHeight);
       
       if (activeType === 'video') setCurrentTime(videoElement.currentTime);
     }
-  }, [resolution, getActiveAsciiString, invertBrightness, brightness, contrast, renderOpts]);
+  }, [resolution, getActiveAsciiString, invertBrightness, brightness, contrast, renderOpts, fontFamily]);
 
   const processLoop = useCallback(() => {
     const type = mediaSourceRef.current?.activeType;
@@ -144,14 +175,14 @@ function App() {
   }, [renderFrame]);
 
   // ── Media Callbacks ──────────────────────────────────────────────────────
-  const handleMediaReady = useCallback((type) => {
+  const handleMediaReady = useCallback((type, url) => {
     setMediaType(type);
+    setMediaUrl(url);
     setFetchError('');
     setIsFetchingUrl(false);
     
     // Explicitly trigger a render for images or start the loop for video
     if (type === 'image') {
-      // Delay slightly to ensure image is truly ready for canvas drawing
       setTimeout(renderFrame, 50);
       setIsPlaying(false);
       setIsPanelVisible(false);
@@ -159,7 +190,7 @@ function App() {
       const video = mediaSourceRef.current?.videoElement;
       if (video) {
         setDuration(video.duration || 0);
-        setIsPlaying(true);
+        setIsPlaying(type === 'webcam');
         setIsPanelVisible(type === 'video');
       }
     }
@@ -174,6 +205,7 @@ function App() {
   const handleFileUpload = (e) => {
     const file = e.target?.files?.[0] || e.dataTransfer?.files?.[0];
     if (file) {
+      setFetchError('');
       mediaSourceRef.current?.loadFromFile(file);
     }
   };
@@ -201,6 +233,75 @@ function App() {
     return () => cancelAnimationFrame(reqRef.current);
   }, [isPlaying, mediaType, processLoop]);
 
+  const handleTotalCharsChange = (newTotal) => {
+    const aspect = mediaAspectRef.current || 1;
+    const corr = aspectRatioCorrection ? 2 : 1;
+    // For images, resolution maps to width: w = 60 + resolution * 60
+    // Total = w * h = w * (w * aspect * corr)
+    // w = sqrt(Total / (aspect * corr))
+    const targetW = Math.sqrt(newTotal / (aspect * corr));
+    const newRes = (targetW - 60) / 60;
+    
+    // Clamp between 0.5 and 3 to stay within existing UI limits
+    setResolution(Math.max(0.5, Math.min(3, newRes)));
+    setTotalChars(newTotal);
+  };
+
+  // ── Static Video Preview ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (mediaType === 'video' && mediaUrl) {
+      const tempVideo = document.createElement('video');
+      tempVideo.crossOrigin = 'anonymous';
+      tempVideo.src = mediaUrl;
+      tempVideo.muted = true;
+      
+      const handleFirstFrame = () => {
+        if (!previewCanvasRef.current) return;
+        const canvas = previewCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const asciiStr = getActiveAsciiString();
+        
+        const multiplier = 4 - resolution;
+        const baseWidth = Math.floor(window.innerWidth / 4 / multiplier);
+        const width = Math.min(baseWidth, 250);
+        
+        const vW = tempVideo.videoWidth || 1;
+        const vH = tempVideo.videoHeight || 1;
+        const aspect = vH / vW;
+        
+        const height = Math.round(width * aspect);
+        const processHeight = aspectRatioCorrection ? Math.round(height * 2) : height;
+
+        canvas.width = width;
+        canvas.height = processHeight;
+        ctx.drawImage(tempVideo, 0, 0, width, processHeight);
+
+        if (coloredAscii) {
+          const imageData = ctx.getImageData(0, 0, width, processHeight);
+          const asciiText = drawVideoAscii(imageData.data, width, asciiStr, true);
+          setAsciiOutput(asciiText);
+        } else {
+          const grayScales = convertToGrayScales(ctx, width, processHeight, {
+            invertBrightness, brightness, contrast
+          });
+          const asciiText = drawVideoAscii(grayScales, width, asciiStr, false);
+          setAsciiOutput(asciiText);
+        }
+      };
+
+      tempVideo.onloadeddata = () => {
+        tempVideo.currentTime = 0.01;
+      };
+      tempVideo.onseeked = handleFirstFrame;
+
+      return () => {
+        tempVideo.onloadeddata = null;
+        tempVideo.onseeked = null;
+        tempVideo.src = '';
+      };
+    }
+  }, [mediaUrl, mediaType, resolution, getActiveAsciiString, coloredAscii, aspectRatioCorrection, invertBrightness, brightness, contrast, fontFamily]);
+
   // ── Playback helpers ─────────────────────────────────────────────────────
   const togglePlay = () => {
     const video = mediaSourceRef.current?.videoElement;
@@ -226,6 +327,68 @@ function App() {
     if (video) video.playbackRate = speed;
   };
 
+  // ── Keyboard Shortcuts ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if typing in an input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+      const video = mediaSourceRef.current?.videoElement;
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'r':
+          setZoom(1);
+          setPan({ x: 0, y: 0 });
+          break;
+        case '+':
+        case '=':
+          setZoom(z => Math.min(5, z + 0.1));
+          break;
+        case '-':
+        case '_':
+          setZoom(z => Math.max(0.1, z - 0.1));
+          break;
+        case 'm':
+          setActiveTool('move');
+          break;
+        case 'z':
+          setActiveTool('zoom');
+          break;
+        case 'i':
+          setInvertBrightness(v => !v);
+          break;
+        case 'c':
+          setColoredAscii(v => !v);
+          break;
+        case '0':
+          if (video) handleSeek(0);
+          break;
+        case 'arrowleft':
+          if (video) handleSeek(Math.max(0, video.currentTime - 1));
+          break;
+        case 'arrowright':
+          if (video) handleSeek(Math.min(duration, video.currentTime + 1));
+          break;
+        case '[':
+          setResolution(r => Math.max(0.5, r - 0.1));
+          break;
+        case ']':
+          setResolution(r => Math.min(3, r + 0.1));
+          break;
+        case '?':
+          setIsShortcutsOpen(true);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, duration, togglePlay, handleSeek]);
+
   // ── Viewport Helpers ─────────────────────────────────────────────────────
   const handleWheel = (e) => {
     e.preventDefault();
@@ -249,7 +412,7 @@ function App() {
   // ── Props ────────────────────────────────────────────────────────────────
   const sidebarProps = {
     mediaUrl, mediaType, 
-    videoRef: { current: mediaSourceRef.current?.videoElement }, // For preview in Sidebar
+    videoRef: { current: null }, // Sidebar will manage its own preview ref if needed
     handleFileUpload,
     asciiMode, setAsciiMode,
     customChars, setCustomChars,
@@ -263,6 +426,8 @@ function App() {
     aspectRatioCorrection, setAspectRatioCorrection,
     asciiColor, setAsciiColor,
     asciiOpacity, setAsciiOpacity,
+    fontFamily, setFontFamily,
+    totalChars, handleTotalCharsChange,
     recentColors, setRecentColors,
     isWebcam: mediaType === 'webcam',
     startWebcam, stopWebcam,
@@ -275,7 +440,7 @@ function App() {
     zoom, setZoom, pan, setPan, isDragging,
     activeTool, setActiveTool,
     handleWheel, handleMouseDown, handleMouseMove, handleMouseUp,
-    asciiColor, asciiOpacity,
+    asciiColor, asciiOpacity, fontFamily,
   };
 
   const bottomPanelProps = {
@@ -285,6 +450,9 @@ function App() {
     onClose: () => setIsPanelVisible(false),
     onOpen:  () => setIsPanelVisible(true),
     height: panelHeight, setHeight: setPanelHeight,
+    // Trim
+    trimRegion,
+    onSaveTrim: handleSaveTrim,
   };
 
   return (
@@ -293,7 +461,31 @@ function App() {
         sidebar={<Sidebar {...sidebarProps} />}
         viewer={<AsciiViewer {...viewerProps} />}
         bottomPanel={mediaType === 'video' && <BottomPanel {...bottomPanelProps} />}
-        exportDropdown={<ExportDropdown asciiOutput={asciiOutput} coloredAscii={coloredAscii} />}
+        shortcutsDropdown={
+          <div className="relative">
+            <div 
+              onClick={() => setIsShortcutsOpen(!isShortcutsOpen)}
+              className="px-2.5 py-0.5 rounded-sm cursor-pointer transition-colors text-gray-300 hover:bg-blender-hover hover:text-white"
+            >
+              Window
+            </div>
+            <ShortcutsDropdown 
+              isOpen={isShortcutsOpen} 
+              setIsOpen={setIsShortcutsOpen} 
+            />
+          </div>
+        }
+        exportDropdown={
+          <ExportDropdown
+            asciiOutput={asciiOutput}
+            coloredAscii={coloredAscii}
+            mediaSourceRef={mediaSourceRef}
+            getActiveAsciiString={getActiveAsciiString}
+            renderOpts={renderOpts}
+            duration={duration}
+            trimRegion={trimRegion}
+          />
+        }
         onHelpClick={() => setIsHelpOpen(true)}
       />
       <MediaSource 

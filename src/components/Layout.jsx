@@ -1,7 +1,7 @@
 import React from 'react';
 import { Monitor, Sliders } from 'lucide-react';
 
-const Layout = ({ sidebar, viewer, bottomPanel, exportDropdown, onHelpClick }) => {
+const Layout = ({ sidebar, viewer, bottomPanel, exportDropdown, shortcutsDropdown, onHelpClick }) => {
   return (
     <div className="flex h-screen w-full bg-blender-bg text-blender-text font-sans overflow-hidden select-none text-[11px]">
 
@@ -15,7 +15,7 @@ const Layout = ({ sidebar, viewer, bottomPanel, exportDropdown, onHelpClick }) =
 
         {/* Menus */}
         <div className="flex items-center gap-0.5">
-          {['File', 'Edit', 'Render', 'Window'].map((menu) => (
+          {['File', 'Edit', 'Render'].map((menu) => (
             <div
               key={menu}
               className="px-2.5 py-0.5 hover:bg-blender-hover rounded-sm cursor-pointer text-gray-300 hover:text-white transition-colors"
@@ -23,6 +23,11 @@ const Layout = ({ sidebar, viewer, bottomPanel, exportDropdown, onHelpClick }) =
               {menu}
             </div>
           ))}
+
+          {/* Window Menu with Dropdown */}
+          <div className="relative group/win">
+            {shortcutsDropdown}
+          </div>
 
           {/* Export Dropdown integrated into menu bar */}
           {exportDropdown}

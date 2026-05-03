@@ -164,20 +164,37 @@ export const convertToGrayScales = (context, width, height, opts = {}) => {
   return grayScales;
 };
 
-export const drawVideoAscii = (grayScales, width, asciiString) => {
-  const len = grayScales.length;
+export const drawVideoAscii = (data, width, asciiString, isColor = false) => {
   const asciiLen = asciiString.length - 1;
   const output = [];
-  let row = '';
+  let rowStr = '';
   
-  for (let i = 0; i < len; i++) {
-    const gray = grayScales[i];
-    const charIdx = Math.round((gray / 255) * asciiLen);
-    row += asciiString[charIdx] || ' ';
-    
-    if ((i + 1) % width === 0) {
-      output.push(row);
-      row = '';
+  if (isColor) {
+    // data is ImageData.data (Uint8ClampedArray)
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const gray = 0.334 * r + 0.333 * g + 0.333 * b; // Simplified luminance for speed
+      const charIdx = Math.round((gray / 255) * asciiLen);
+      const char = asciiString[charIdx] || ' ';
+      const safe = char === '<' ? '&lt;' : char === '>' ? '&gt;' : char === '&' ? '&amp;' : char;
+      rowStr += `<span style="color:rgb(${r},${g},${b})">${safe}</span>`;
+      
+      if ((p + 1) % width === 0) {
+        output.push(rowStr);
+        rowStr = '';
+      }
+    }
+  } else {
+    // data is grayScales (Float32Array)
+    for (let i = 0; i < data.length; i++) {
+      const gray = data[i];
+      const charIdx = Math.round((gray / 255) * asciiLen);
+      rowStr += asciiString[charIdx] || ' ';
+      
+      if ((i + 1) % width === 0) {
+        output.push(rowStr);
+        rowStr = '';
+      }
     }
   }
   return output.join('\n');

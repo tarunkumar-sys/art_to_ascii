@@ -11,11 +11,21 @@
 
 ### 🚀 Key Features
 
-| 🛠️ Processing | 🎮 Viewport | 📤 Export |
+| 🛠️ Processing | 🎮 Viewport | 📤 Export & Presets |
 | :--- | :--- | :--- |
-| **Real-time Engine**: Instant conversion of images, MP4 videos, and **Live Webcam**. | **Blender Navigation**: Professional pan (MMB) and zoom (Scroll) controls. | **Multi-Format**: Export as high-res PNG, TXT, or GitHub-ready Markdown. |
-| **Edge Detection**: Integrated Sobel operator for structural ASCII outlines. | **Precise Zoom**: Fine-grained viewport scaling with centered origin. | **ANSI Color**: Optional RGB color mapping for HTML/Terminal displays. |
-| **Custom Ramps**: Define and save custom character gradients as presets. | **Dark Studio UI**: 1:1 Blender-style interface for a focused workflow. | **Aspect Correction**: Automatic compensation for monospace line-height. |
+| **Real-time Engine**: Instant conversion of images, MP4/WebM videos, and **Live Webcam**. | **Blender Navigation**: Professional pan (MMB) and zoom (Scroll) controls. | **GIF Animation**: Export video segments as universal animated GIFs via `gif.js`. |
+| **Edge Detection**: Integrated Sobel operator for structural ASCII outlines. | **Integrated Shortcuts**: Quick-access keybindings dropdown (Window menu). | **HTML Snippets**: Copy colored ASCII as production-ready CSS/HTML snippets. |
+| **Preset System**: Save and name custom render configurations to `localStorage`. | **Dark Studio UI**: 1:1 Blender-style interface for a focused workflow. | **Progress & ETA**: Real-time export progress with estimated time remaining. |
+
+---
+
+### ✨ What's New
+
+-   **🎬 Animated GIF Export**: High-quality GIF generation for Discord, Twitter, and GitHub.
+-   **💾 Named Presets**: Store your favorite combinations of characters, brightness, and contrast.
+-   **🎨 Background Control**: Custom background colors for all exports, including transparency support for PNG/GIF.
+-   **📋 Copy HTML**: One-click "Copy HTML" for pasting colored ASCII directly into web pages or READMEs.
+-   **⏱️ ETA Logic**: Intelligent throughput measurement provides accurate encoding time estimates.
 
 ---
 
@@ -50,13 +60,14 @@ npm run dev
     *   **Fetch URL**: Pull media directly from the web (CORS permitting).
 2.  **Render Properties**: Switch to the **Render Tab** (CameraIcon) to tweak the engine:
     *   **Sampling**: Change the character ramp or resolution density.
+    *   **Presets**: Save your current settings or load one of the built-in professional ramps.
     *   **Adjustments**: Fine-tune **Brightness** and **Contrast** using Blender-style draggable fields.
-    *   **Effects**: Enable **Edge Detect** to emphasize shapes and borders.
 3.  **Visuals**: Customize the **Fill Color** and **Opacity** or toggle **Colored Output** for vibrant RGB ASCII.
-4.  **Navigation**: 
-    *   **Pan**: Hold Middle Mouse Button (or Space + Left Click).
-    *   **Zoom**: Scroll Wheel or use the zoom slider.
-5.  **Export**: Click the **Output & Export** button in the header to save your creation.
+4.  **Navigation & Keys**: 
+    *   **Pan**: Middle Mouse Button or `Space + Drag`.
+    *   **Zoom**: Scroll Wheel or `+`/`-` keys.
+    *   **Shortcuts**: Click the **Window** menu in the header to see all keyboard commands.
+5.  **Export**: Use the **Export** button in the header to save as PNG, TXT, SVG, WebM, or GIF. Configure your **Background Color** and **Alpha** before rendering.
 
 ---
 
@@ -65,11 +76,12 @@ npm run dev
 -   **React 19**: Modern UI component architecture with hooks-based state.
 -   **Vite 6**: Blazing fast development environment and optimized builds.
 -   **Tailwind CSS 4**: Custom "Blender-Dark" theme implementation.
+-   **GIF.js**: Client-side GIF encoding using Web Workers.
 -   **HTML5 Canvas**: Low-level pixel processing and frame extraction.
 -   **Lucide React**: Clean, consistent interface iconography.
--   **Sobel Engine**: Custom JavaScript implementation of structural edge detection.
 
 ---
 
 *Built with precision for the ASCII art community.*
+
 

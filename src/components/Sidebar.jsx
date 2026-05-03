@@ -109,10 +109,18 @@ const SelectField = ({ value, onChange, options }) => (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      style={{ fontFamily: value }}
       className="w-full h-[18px] bg-[#1d1d1d] border border-[#111] rounded-[2px] text-[10px] text-gray-200 px-1.5 outline-none cursor-pointer hover:border-[#333] appearance-none"
     >
       {options.map(o => (
-        <option key={o.value || o} value={o.value || o}>{o.label || o}</option>
+        <option
+          key={o.value || o}
+          value={o.value || o}
+          style={{ fontFamily: o.value || o }}
+          className="bg-[#1d1d1d] text-gray-200"
+        >
+          {o.label || o}
+        </option>
       ))}
     </select>
     <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-gray-500 pointer-events-none">▾</span>
@@ -168,8 +176,8 @@ const Sep = () => <div className="mx-2 my-0.5 border-t border-[#111]" />;
 // ─── Tab icon strip definition ─────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'render', Icon: Camera, label: 'Render Properties' },
   { id: 'source', Icon: ImageIcon, label: 'Source Media' },
+  { id: 'render', Icon: Camera, label: 'Render Properties' },
 ];
 
 // ─── Main Sidebar component ───────────────────────────────────────────────────
@@ -191,32 +199,53 @@ const Sidebar = ({
   aspectRatioCorrection, setAspectRatioCorrection,
   asciiColor, setAsciiColor,
   asciiOpacity, setAsciiOpacity,
+  fontFamily, setFontFamily,
+  totalChars, handleTotalCharsChange,
   recentColors, setRecentColors,
   // source
   isWebcam, startWebcam, stopWebcam,
   mediaUrlInput, setMediaUrlInput,
   fetchMediaUrl, isFetchingUrl, fetchError,
 }) => {
-  const [activeTab, setActiveTab] = useState('render');
+  const [activeTab, setActiveTab] = useState('source');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Custom preset management
-  const [customPresets, setCustomPresets] = useState([]);
+  const [customPresets, setCustomPresets] = useState(() => {
+    const saved = localStorage.getItem('ascii_presets');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [newPresetName, setNewPresetName] = useState('');
   const [showAddPreset, setShowAddPreset] = useState(false);
-  const [showPresetInput, setShowPresetInput] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('ascii_presets', JSON.stringify(customPresets));
+  }, [customPresets]);
 
   const allPresets = [...ASCII_PRESETS, ...customPresets];
 
-  const applyPreset = (chars) => {
-    setCustomChars(chars);
-    setAsciiMode('custom');
+  const applyPreset = (preset) => {
+    if (preset.chars !== undefined) setCustomChars(preset.chars);
+    if (preset.mode) setAsciiMode(preset.mode);
+    if (preset.brightness !== undefined) setBrightness(preset.brightness);
+    if (preset.contrast !== undefined) setContrast(preset.contrast);
+    if (preset.color) setAsciiColor(preset.color);
+    if (preset.mode) setAsciiMode(preset.mode);
+    else setAsciiMode('custom');
   };
 
   const addCustomPreset = () => {
-    if (!newPresetName.trim() || !customChars.trim()) return;
-    setCustomPresets(p => [...p, { name: newPresetName.trim(), chars: customChars }]);
+    if (!newPresetName.trim()) return;
+    const config = {
+      name: newPresetName.trim(),
+      chars: customChars,
+      brightness,
+      contrast,
+      color: asciiColor,
+      mode: asciiMode
+    };
+    setCustomPresets(p => [...p, config]);
     setNewPresetName('');
     setShowAddPreset(false);
   };
@@ -288,6 +317,23 @@ const Sidebar = ({
                   />
                 </PropRow>
               )}
+
+              <PropRow label="Font" tip="Choose the font family for ASCII output">
+                <SelectField
+                  value={fontFamily}
+                  onChange={setFontFamily}
+                  options={[
+                    { value: 'monospace', label: 'Monospace' },
+                    { value: '"Fira Code", monospace', label: 'Fira Code' },
+                    { value: '"JetBrains Mono", monospace', label: 'JetBrains Mono' },
+                    { value: '"Source Code Pro", monospace', label: 'Source Code Pro' },
+                    { value: '"Roboto Mono", monospace', label: 'Roboto Mono' },
+                    { value: 'Consolas, "Liberation Mono", monospace', label: 'Consolas' },
+                    { value: '"Courier New", Courier, monospace', label: 'Courier New' },
+                    { value: '"Lucida Console", Monaco, monospace', label: 'Lucida Console' },
+                  ]}
+                />
+              </PropRow>
             </Section>
 
             {/* ── Character Presets ── */}
@@ -300,7 +346,7 @@ const Sidebar = ({
                   return (
                     <div key={preset.name} className="relative group">
                       <button
-                        onClick={() => applyPreset(preset.chars)}
+                        onClick={() => applyPreset(preset)}
                         className={`w-full h-[22px] rounded-[2px] border text-left px-2 text-[9px] font-bold truncate transition-colors ${isActive
                           ? 'bg-blender-active/25 border-blender-active/60 text-blender-active'
                           : 'bg-[#1d1d1d] border-[#111] text-gray-500 hover:border-[#333] hover:text-gray-300'
@@ -427,6 +473,13 @@ const Sidebar = ({
 
             {/* ── Adjustments ── */}
             <Section title="Adjustments" defaultOpen={false}>
+              <PropRow label="Total Chars" tip="Target character count (adjusts resolution)">
+                <NumField
+                  value={totalChars}
+                  onChange={handleTotalCharsChange}
+                  min={100} max={100000} step={100} decimals={0}
+                />
+              </PropRow>
               <PropRow label="Brightness" tip="Scale overall brightness (drag or double-click)">
                 <NumField value={brightness} onChange={setBrightness} min={0} max={3} step={0.01} decimals={3} />
               </PropRow>

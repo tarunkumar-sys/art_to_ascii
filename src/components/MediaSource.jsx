@@ -19,6 +19,7 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
       setSourceUrl(url);
       if (file.type.startsWith('video/')) {
         setActiveType('video');
+        // Video needs metadata to get dimensions
       } else {
         setActiveType('image');
       }
@@ -52,7 +53,8 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
         // but for now let's just try to load as image first, then video
         setSourceUrl(finalUrl);
         setActiveType(isVideo ? 'video' : 'image');
-
+        // For URL images, we can call ready immediately if we want, 
+        // but it's safer to wait for the <img> onLoad.
       } catch (err) {
         onFetchError?.('Failed to load media from URL');
       } finally {
@@ -73,7 +75,7 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
           await videoRef.current.play();
         }
         setActiveType('webcam');
-        onMediaReady?.('webcam');
+        onMediaReady?.('webcam', 'webcam');
       } catch (err) {
         console.error('Webcam error:', err);
         onFetchError?.('Webcam access denied or unavailable.');
@@ -109,11 +111,11 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
 
   // Handle media loading events
   const handleVideoLoaded = () => {
-    if (activeType === 'video') onMediaReady?.('video');
+    if (activeType === 'video') onMediaReady?.('video', sourceUrl);
   };
 
   const handleImageLoaded = () => {
-    if (activeType === 'image') onMediaReady?.('image');
+    if (activeType === 'image') onMediaReady?.('image', sourceUrl);
   };
 
   return (

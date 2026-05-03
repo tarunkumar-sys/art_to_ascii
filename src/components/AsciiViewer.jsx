@@ -6,7 +6,7 @@ const AsciiViewer = ({
   zoom, setZoom, pan, setPan, isDragging,
   activeTool, setActiveTool,
   handleWheel, handleMouseDown, handleMouseMove, handleMouseUp,
-  asciiColor, asciiOpacity
+  asciiColor, asciiOpacity, fontFamily
 }) => {
   const viewportRef = useRef(null);
 
@@ -97,24 +97,21 @@ const AsciiViewer = ({
               top: '50%',
             }}
           >
-            {coloredAscii ? (
+            <div className="shadow-2xl bg-black/80 p-6 rounded-lg border border-blender-border/50">
               <pre
-                className="font-mono text-[5px] sm:text-[7px] leading-[1] pointer-events-none text-center shadow-2xl bg-black/80 p-4 rounded-lg border border-[#333]"
-                style={{ letterSpacing: '-0.05em' }}
-                dangerouslySetInnerHTML={{ __html: asciiOutput }}
-              />
-            ) : (
-              <pre 
-                className="font-mono text-[5px] sm:text-[7px] leading-[0.8] pointer-events-none text-center shadow-2xl bg-black/60 p-4 rounded-lg border border-[#333]"
-                style={{ 
-                  color: asciiColor, 
-                  opacity: asciiOpacity / 100,
-                  letterSpacing: '-0.1em'
+                className="text-[6px] leading-[0.5] pointer-events-none text-center whitespace-pre select-none"
+                style={{
+                  fontFamily: fontFamily,
+                  color: coloredAscii ? 'inherit' : asciiColor,
+                  opacity: coloredAscii ? 1 : asciiOpacity / 100,
+                  letterSpacing: '-0.05em',
+                  filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))'
                 }}
+                dangerouslySetInnerHTML={coloredAscii ? { __html: asciiOutput } : undefined}
               >
-                {asciiOutput}
+                {!coloredAscii ? asciiOutput : undefined}
               </pre>
-            )}
+            </div>
           </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
