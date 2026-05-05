@@ -648,7 +648,7 @@ const Sidebar = ({
                   </div>
                 )}
                 <p className="text-[9px] text-gray-700 leading-tight pt-0.5">
-                  Supports direct image URLs. CORS must be allowed by the remote server.
+                  Supports direct image & video URLs. Processed via backend CORS proxy.
                 </p>
               </div>
             </Section>

@@ -228,7 +228,7 @@ async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
     quality: 10,
     width: outCanvas.width,
     height: outCanvas.height,
-    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+    workerScript: '/api/gifWorker',
     transparent: exportTransparent ? 0x00000000 : null
   });
 

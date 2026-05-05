@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
+import { fetchMediaAsFile } from '../utils/media-fetcher';
 
 const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
   const videoRef = useRef(null);
@@ -26,37 +27,26 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
     },
 
     loadFromUrl: async (url) => {
-      cleanup();
       setIsLoading(true);
       try {
-        let finalUrl = url;
+        const file = await fetchMediaAsFile(url);
         
-        // Handle YouTube
-        if (url.includes('youtube.com') || url.includes('youtu.be')) {
-          onFetchError?.('YouTube URLs require a direct video stream link. Try a direct file URL or use a downloader.');
-          setIsLoading(false);
-          return;
+        // Pass the fetched File object to the same upload pipeline
+        // This ensures shared logic for cleanup, state updates, and rendering
+        // console.log('[MediaSource] External media converted to File:', file);
+        
+        // We use the same loadFromFile logic
+        const blobUrl = URL.createObjectURL(file);
+        setSourceUrl(blobUrl);
+        if (file.type.startsWith('video/')) {
+          setActiveType('video');
+        } else {
+          setActiveType('image');
         }
-
-        // Try to check if direct load works first
-        let isVideo = url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i);
         
-        // If it's a known CORS-heavy site (like pinimg, i.redd.it, etc.) or no extension, use proxy immediately
-        const needsProxy = !isVideo || url.includes('pinimg.com') || url.includes('unsplash.com') || url.includes('static.flickr.com');
-        
-        if (needsProxy) {
-          // Use a reliable CORS proxy
-          finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        }
-
-        // If no extension, try to sniff type via proxy HEAD request if possible, 
-        // but for now let's just try to load as image first, then video
-        setSourceUrl(finalUrl);
-        setActiveType(isVideo ? 'video' : 'image');
-        // For URL images, we can call ready immediately if we want, 
-        // but it's safer to wait for the <img> onLoad.
       } catch (err) {
-        onFetchError?.('Failed to load media from URL');
+        console.error('[MediaSource] Fetch Error:', err);
+        onFetchError?.(err.message || 'Failed to fetch media via proxy');
       } finally {
         setIsLoading(false);
       }
