@@ -21,9 +21,10 @@ const loadGifJs = () => new Promise((resolve, reject) => {
  * @param {HTMLVideoElement} videoEl  – source video element
  * @param {Object}           opts    – { startTime, endTime, asciiStr, renderOpts, fps, fontPx }
  * @param {function}         onProgress – (0..1)
+ * @param {function}         isCancelled – returns true if cancelled
  * @returns {Promise<Blob>}
  */
-async function renderAsciiVideo(videoEl, opts, onProgress) {
+async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
   const {
     startTime = 0,
     endTime,
@@ -89,6 +90,7 @@ async function renderAsciiVideo(videoEl, opts, onProgress) {
       videoEl.addEventListener('seeked', onSeeked);
     });
     onProgress?.((f + 1) / (totalFrames * 2), `Scanning frames ${f + 1}/${totalFrames}…`);
+    if (isCancelled?.()) throw new Error('CANCELLED');
     await new Promise(r => setTimeout(r, 0));
   }
 
@@ -153,6 +155,7 @@ async function renderAsciiVideo(videoEl, opts, onProgress) {
       }
 
       onProgress?.(0.5 + (f + 1) / (totalFrames * 2), `Encoding ${f + 1}/${totalFrames}…${etaLabel}`);
+      if (isCancelled?.()) throw new Error('CANCELLED');
       await new Promise(r => setTimeout(r, 0));
     }
 
@@ -163,7 +166,7 @@ async function renderAsciiVideo(videoEl, opts, onProgress) {
 /**
  * GIF export using gif.js
  */
-async function renderAsciiGif(videoEl, opts, onProgress) {
+async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
   const {
     startTime = 0,
     endTime,
@@ -216,6 +219,7 @@ async function renderAsciiGif(videoEl, opts, onProgress) {
       videoEl.addEventListener('seeked', onSeeked);
     });
     onProgress?.((f + 1) / (totalFrames * 2), `Scanning frames ${f + 1}/${totalFrames}…`);
+    if (isCancelled?.()) throw new Error('CANCELLED');
   }
 
   // Phase 2: Encoding
@@ -280,6 +284,7 @@ async function renderAsciiGif(videoEl, opts, onProgress) {
 
     onProgress?.(0.5 + (f + 1) / (totalFrames * 2), `Encoding GIF ${f + 1}/${totalFrames}…${etaLabel}`);
     
+    if (isCancelled?.()) throw new Error('CANCELLED');
     if (f % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
@@ -290,16 +295,19 @@ async function renderAsciiGif(videoEl, opts, onProgress) {
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
-
 const ExportDropdown = ({
   asciiOutput,
   coloredAscii,
-  // Video export
   mediaSourceRef,
   getActiveAsciiString,
   renderOpts,
   duration,
   trimRegion,
+  zoom = 1,
+  pan = { x: 0, y: 0 },
+  activeTool = 'move',
+  asciiColor = '#ffffff',
+  asciiOpacity = 100,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [encoding, setEncoding] = useState(null); // null | 'full' | 'trim' | 'gif'
@@ -309,6 +317,17 @@ const ExportDropdown = ({
   const [exportBgColor, setExportBgColor] = useState('#1c1c1c');
   const [exportTransparent, setExportTransparent] = useState(false);
   const dropdownRef = useRef(null);
+  const cancelRef = useRef(false);
+
+  // Lock screen scroll when encoding
+  useEffect(() => {
+    if (encoding) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [encoding]);
 
   const handleProgress = (p, label) => {
     setProgress(p);
@@ -338,19 +357,54 @@ const ExportDropdown = ({
     const ctx = canvas.getContext('2d');
     const fontSize = 12;
     const fontFamily = renderOpts?.fontFamily || 'monospace';
+    
+    // Character dimensions for monospace
     ctx.font = `${fontSize}px ${fontFamily}`;
-    let maxW = 0;
-    for (const l of lines) { const w = ctx.measureText(l).width; if (w > maxW) maxW = w; }
-    canvas.width = maxW + 40;
-    canvas.height = lines.length * (fontSize + 2) + 40;
+    const charW = ctx.measureText('M').width;
+    const charH = fontSize + 2;
+
+    let maxCols = 0;
+    if (coloredAscii) {
+      const tempDiv = document.createElement('div');
+      lines.forEach(line => {
+        tempDiv.innerHTML = line;
+        const count = tempDiv.querySelectorAll('span').length;
+        if (count > maxCols) maxCols = count;
+      });
+    } else {
+      for (const l of lines) { if (l.length > maxCols) maxCols = l.length; }
+    }
+
+    canvas.width = maxCols * charW + 40;
+    canvas.height = lines.length * charH + 40;
+    
     if (exportTransparent && format === 'png') {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } else {
       ctx.fillStyle = exportBgColor; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
-    ctx.fillStyle = '#cccccc'; ctx.font = `${fontSize}px ${fontFamily}`; ctx.textBaseline = 'top';
-    lines.forEach((l, i) => ctx.fillText(l, 20, 20 + i * (fontSize + 2)));
+    
+    ctx.font = `${fontSize}px ${fontFamily}`; 
+    ctx.textBaseline = 'top';
+
+    if (coloredAscii) {
+      const tempDiv = document.createElement('div');
+      lines.forEach((lineHtml, i) => {
+        tempDiv.innerHTML = lineHtml;
+        const spans = tempDiv.querySelectorAll('span');
+        spans.forEach((span, j) => {
+          ctx.fillStyle = span.style.color || '#cccccc';
+          ctx.fillText(span.textContent, 20 + j * charW, 20 + i * charH);
+        });
+      });
+    } else {
+      ctx.fillStyle = asciiColor;
+      ctx.globalAlpha = asciiOpacity / 100;
+      lines.forEach((l, i) => ctx.fillText(l, 20, 20 + i * charH));
+      ctx.globalAlpha = 1.0;
+    }
+
     const mimeMap = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
     const mime = mimeMap[format] ?? 'image/png';
     const dataUrl = format === 'jpg'
@@ -359,6 +413,108 @@ const ExportDropdown = ({
     const a = Object.assign(document.createElement('a'), {
       download: `ascii-art.${format}`,
       href: dataUrl,
+    });
+    a.click();
+  };
+
+  const captureViewport = () => {
+    if (!asciiOutput) return;
+    
+    // Find the viewport element
+    const viewport = document.querySelector('.flex-1.relative.overflow-hidden.bg-\\[\\#1c1c1c\\]');
+    if (!viewport) return;
+    
+    const rect = viewport.getBoundingClientRect();
+    const canvas = document.createElement('canvas');
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    const ctx = canvas.getContext('2d');
+    
+    // 1. Draw background
+    ctx.fillStyle = '#1c1c1c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 2. Draw grid (optional, but makes it look like viewport)
+    const gridSize = 20 * zoom;
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    for (let x = pan.x % gridSize; x < canvas.width; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = pan.y % gridSize; y < canvas.height; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // 3. Draw ASCII content
+    const fontSize = 6 * zoom; // Match the text-[6px] in AsciiViewer
+    const charW = (fontSize * 0.6); // Approximate monospace width
+    const charH = fontSize * 0.5; // Match leading-[0.5]
+    
+    const lines = asciiOutput.split('\n');
+    const fontFamilyStr = renderOpts?.fontFamily || 'monospace';
+    ctx.font = `${fontSize}px ${fontFamilyStr}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+
+    // Calculate center position matching CSS: translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px)
+    const centerX = canvas.width / 2 + pan.x;
+    const centerY = canvas.height / 2 + pan.y;
+    
+    // Draw the "shadow-2xl bg-black/80 p-6 rounded-lg" container
+    // We need to estimate its size
+    let maxCols = 0;
+    if (coloredAscii) {
+      const tempDiv = document.createElement('div');
+      lines.forEach(line => {
+        tempDiv.innerHTML = line;
+        const count = tempDiv.querySelectorAll('span').length;
+        if (count > maxCols) maxCols = count;
+      });
+    } else {
+      for (const l of lines) { if (l.length > maxCols) maxCols = l.length; }
+    }
+    
+    const artW = maxCols * charW;
+    const artH = lines.length * charH;
+    const padding = 24 * zoom; // p-6 = 1.5rem = 24px
+    
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 20 * zoom;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.roundRect(centerX - artW/2 - padding, centerY - artH/2 - padding, artW + padding*2, artH + padding*2, 8 * zoom);
+    ctx.fill();
+    ctx.shadowBlur = 0; // Reset shadow
+
+    // Draw lines
+    if (coloredAscii) {
+      const tempDiv = document.createElement('div');
+      lines.forEach((lineHtml, i) => {
+        tempDiv.innerHTML = lineHtml;
+        const spans = tempDiv.querySelectorAll('span');
+        const y = centerY - artH/2 + i * charH;
+        spans.forEach((span, j) => {
+          const x = centerX - artW/2 + j * charW + charW/2;
+          ctx.fillStyle = span.style.color || '#cccccc';
+          ctx.fillText(span.textContent, x, y);
+        });
+      });
+    } else {
+      ctx.fillStyle = asciiColor;
+      ctx.globalAlpha = asciiOpacity / 100;
+      lines.forEach((line, i) => {
+        const y = centerY - artH/2 + i * charH;
+        for (let j = 0; j < line.length; j++) {
+           const x = centerX - artW/2 + j * charW + charW/2;
+           ctx.fillText(line[j], x, y);
+        }
+      });
+      ctx.globalAlpha = 1.0;
+    }
+
+    const a = Object.assign(document.createElement('a'), {
+      download: `viewport-snapshot.png`,
+      href: canvas.toDataURL('image/png'),
     });
     a.click();
   };
@@ -495,6 +651,7 @@ const ExportDropdown = ({
     setEncoding(mode);
     setProgress(0);
     setIsOpen(false);
+    cancelRef.current = false;
 
     try {
       let blob;
@@ -514,10 +671,12 @@ const ExportDropdown = ({
       };
 
       if (mode === 'gif') {
-        blob = await renderAsciiGif(videoEl, opts, handleProgress);
+        blob = await renderAsciiGif(videoEl, opts, handleProgress, () => cancelRef.current);
       } else {
-        blob = await renderAsciiVideo(videoEl, opts, handleProgress);
+        blob = await renderAsciiVideo(videoEl, opts, handleProgress, () => cancelRef.current);
       }
+
+      if (cancelRef.current) return;
 
       const url = URL.createObjectURL(blob);
       const ext = mode === 'gif' ? 'gif' : 'webm';
@@ -526,11 +685,16 @@ const ExportDropdown = ({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
-      console.error('Video export failed:', err);
-      alert('Video export failed: ' + err.message);
+      if (err.message === 'CANCELLED') {
+        console.log('Export cancelled by user');
+      } else {
+        console.error('Video export failed:', err);
+        alert('Video export failed: ' + err.message);
+      }
     } finally {
       setEncoding(null);
       setProgress(0);
+      cancelRef.current = false;
       if (wasPlaying) videoEl.play();
     }
   };
@@ -605,6 +769,7 @@ const ExportDropdown = ({
     trim:  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
     copy:  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
     md:    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+    cam:   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
   };
 
   // ── item row ───────────────────────────────────────────────────────────────
@@ -674,6 +839,27 @@ const ExportDropdown = ({
               <div style={{ height: 4, background: '#181818', borderRadius: 1, overflow: 'hidden' }}>
                 <div style={{ height: '100%', background: '#4b7091', width: `${Math.round(progress * 100)}%`, transition: 'width 0.1s' }} />
               </div>
+            </div>
+
+            {/* Cancel button at bottom center */}
+            <div style={{ padding: '0 14px 14px', display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => { cancelRef.current = true; }}
+                style={{
+                  background: '#3d3d3d',
+                  border: '1px solid #444',
+                  color: '#ccc',
+                  fontSize: 10,
+                  padding: '4px 12px',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  transition: 'all 0.1s',
+                }}
+                onMouseEnter={(e) => { e.target.style.background = '#4a4a4a'; e.target.style.color = '#fff'; }}
+                onMouseLeave={(e) => { e.target.style.background = '#3d3d3d'; e.target.style.color = '#ccc'; }}
+              >
+                Cancel Export
+              </button>
             </div>
           </div>
         </div>
@@ -770,6 +956,7 @@ const ExportDropdown = ({
 
           {/* ── Static formats ── */}
           <Sep label={`Format (~${getImageSizeEstimate()})`} />
+          <Row icon={Ic.cam} label="Viewport Snapshot" badge=".png" onClick={captureViewport} />
           <Row icon={Ic.txt} label="Plain Text"   badge=".txt"  onClick={downloadText} />
           <Row icon={Ic.img} label="Image — PNG"  badge=".png"  onClick={() => downloadImage('png')} />
           <Row icon={Ic.img} label="Image — JPEG" badge=".jpg"  onClick={() => downloadImage('jpg')} />

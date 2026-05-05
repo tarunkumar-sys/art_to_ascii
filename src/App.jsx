@@ -484,6 +484,11 @@ function App() {
             renderOpts={renderOpts}
             duration={duration}
             trimRegion={trimRegion}
+            zoom={zoom}
+            pan={pan}
+            activeTool={activeTool}
+            asciiColor={asciiColor}
+            asciiOpacity={asciiOpacity}
           />
         }
         onHelpClick={() => setIsHelpOpen(true)}
