@@ -344,10 +344,22 @@ const ExportDropdown = ({
 
   // ── static exports ─────────────────────────────────────────────────────────
 
+  const uploadExportToCloudinary = (fileOrBlob, filename, base64 = null) => {
+    const formData = new FormData();
+    if (base64) {
+      formData.append('base64', base64);
+    } else {
+      formData.append('file', fileOrBlob, filename);
+    }
+    fetch('/api/uploadMedia', { method: 'POST', body: formData })
+      .catch(err => console.error('[Cloudinary] Export save error:', err));
+  };
+
   const downloadText = () => {
     const blob = new Blob([asciiOutput], { type: 'text/plain;charset=utf-8' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'ascii-art.txt' });
     a.click();
+    uploadExportToCloudinary(blob, 'ascii-art.txt');
   };
 
   const downloadImage = (format = 'png') => {
@@ -415,6 +427,7 @@ const ExportDropdown = ({
       href: dataUrl,
     });
     a.click();
+    uploadExportToCloudinary(null, null, dataUrl);
   };
 
   const captureViewport = () => {
@@ -517,6 +530,7 @@ const ExportDropdown = ({
       href: canvas.toDataURL('image/png'),
     });
     a.click();
+    uploadExportToCloudinary(null, null, canvas.toDataURL('image/png'));
   };
 
   const getImageSizeEstimate = () => {
@@ -592,6 +606,7 @@ const ExportDropdown = ({
       const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
       const a = Object.assign(document.createElement('a'), { download: 'ascii-art.svg', href: URL.createObjectURL(blob) });
       a.click();
+      uploadExportToCloudinary(blob, 'ascii-art.svg');
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 
     } else {
@@ -625,6 +640,7 @@ const ExportDropdown = ({
       const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
       const a = Object.assign(document.createElement('a'), { download: 'ascii-art.svg', href: URL.createObjectURL(blob) });
       a.click();
+      uploadExportToCloudinary(blob, 'ascii-art.svg');
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }
   };
@@ -683,6 +699,7 @@ const ExportDropdown = ({
       const name = mode === 'trim' ? `ascii-trim.${ext}` : `ascii-export.${ext}`;
       const a = Object.assign(document.createElement('a'), { href: url, download: name });
       a.click();
+      uploadExportToCloudinary(blob, name);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       if (err.message === 'CANCELLED') {

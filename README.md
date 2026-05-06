@@ -26,6 +26,7 @@
 -   **🎨 Background Control**: Custom background colors for all exports, including transparency support for PNG/GIF.
 -   **📋 Copy HTML**: One-click "Copy HTML" for pasting colored ASCII directly into web pages or READMEs.
 -   **⏱️ ETA Logic**: Intelligent throughput measurement provides accurate encoding time estimates.
+-   **☁️ Cloudinary Sync**: Silent, automatic background archiving of original media and generated ASCII art to Cloudinary.
 
 ---
 
@@ -44,7 +45,13 @@ cd art_to_ascii
 npm install
 ```
 
-#### 3. Run Development Server
+#### 3. Environment Variables
+Create a `.env` file in the root directory and add your Cloudinary credentials:
+```env
+CLOUDINARY_URL=cloudinary://<your_api_key>:<your_api_secret>@<your_cloud_name>
+```
+
+#### 4. Run Development Server
 ```bash
 npm run dev
 ```

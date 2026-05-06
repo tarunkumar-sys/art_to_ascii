@@ -24,6 +24,12 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
       } else {
         setActiveType('image');
       }
+
+      // Background upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+      fetch('/api/uploadMedia', { method: 'POST', body: formData })
+        .catch(err => console.error('[Cloudinary] Original file save error:', err));
     },
 
     loadFromUrl: async (url) => {
@@ -44,6 +50,12 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
           setActiveType('image');
         }
         
+        // Background upload to Cloudinary (since we have the downloaded file Blob)
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch('/api/uploadMedia', { method: 'POST', body: formData })
+          .catch(err => console.error('[Cloudinary] URL media save error:', err));
+          
       } catch (err) {
         console.error('[MediaSource] Fetch Error:', err);
         onFetchError?.(err.message || 'Failed to fetch media via proxy');

@@ -91,6 +91,18 @@ const apiProxy = () => ({
   name: 'api-proxy',
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
+      // Handle upload proxy
+      if (req.url.startsWith('/api/uploadMedia')) {
+        try {
+          const handler = await import('./api/uploadMedia.js');
+          return handler.default(req, res);
+        } catch (e) {
+          console.error('Upload proxy error:', e);
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: 'Upload proxy error', details: e.message }));
+        }
+      }
+
       if (req.url.startsWith('/api/fetchMedia')) {
         const urlParams = new URL(req.url, `http://${req.headers.host}`)
         let targetUrl = urlParams.searchParams.get('url')
