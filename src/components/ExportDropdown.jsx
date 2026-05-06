@@ -12,6 +12,16 @@ const loadGifJs = () => new Promise((resolve, reject) => {
   document.head.appendChild(script);
 });
 
+// Dynamic WebMMuxer loader
+const loadWebMMuxer = () => new Promise((resolve, reject) => {
+  if (window.WebMMuxer) return resolve(window.WebMMuxer);
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/webm-muxer/build/webm-muxer.js';
+  script.onload = () => resolve(window.WebMMuxer);
+  script.onerror = reject;
+  document.head.appendChild(script);
+});
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -39,6 +49,8 @@ async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
     contrast = 1,
     exportBgColor = '#111111',
     exportTransparent = false,
+    asciiColor = '#cccccc',
+    asciiOpacity = 100,
   } = opts;
 
   const duration = endTime - startTime;
@@ -53,14 +65,25 @@ async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
   // ── Output canvas ──────────────────────────────────────────────────────────
   const outCanvas = document.createElement('canvas');
   const outCtx = outCanvas.getContext('2d');
-  const charSpacingX = fontPx * 0.6;
-  const charSpacingY = fontPx + 2;
+  
+  outCtx.font = `${fontPx}px ${fontFamily}`;
+  outCtx.letterSpacing = '-0.05em';
+  const charSpacingX = outCtx.measureText('M').width || (fontPx * 0.6 * 0.95);
+  const charSpacingY = fontPx * 0.5; // Matches leading-[0.5]
+  
   outCanvas.width = Math.ceil(charW * charSpacingX);
   outCanvas.height = Math.ceil(charH * charSpacingY);
+  // WebCodecs requires even dimensions
+  if (outCanvas.width % 2 !== 0) outCanvas.width += 1;
+  if (outCanvas.height % 2 !== 0) outCanvas.height += 1;
+
   outCtx.font = `${fontPx}px ${fontFamily}`;
+  outCtx.letterSpacing = '-0.05em';
   outCtx.textBaseline = 'top';
 
   const clearCanvas = () => {
+    outCtx.globalAlpha = 1.0;
+    outCtx.shadowBlur = 0; // disable shadow for background fill
     if (exportTransparent) {
       outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
     } else {
@@ -81,10 +104,11 @@ async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
     const t = startTime + (f / fps);
     videoEl.currentTime = t;
     await new Promise(resolve => {
-      const onSeeked = () => {
+      const onSeeked = async () => {
         videoEl.removeEventListener('seeked', onSeeked);
         sampleCtx.drawImage(videoEl, 0, 0, charW, charH);
-        frameData.push(sampleCtx.getImageData(0, 0, charW, charH));
+        const bitmap = await createImageBitmap(sampleCanvas);
+        frameData.push(bitmap);
         resolve();
       };
       videoEl.addEventListener('seeked', onSeeked);
@@ -94,27 +118,98 @@ async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
     await new Promise(r => setTimeout(r, 0));
   }
 
-  // ── MediaRecorder setup ───────────────────────────────────────────────────
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-    ? 'video/webm;codecs=vp9'
-    : 'video/webm';
+  const useWorker = !!window.VideoEncoder && !!window.OffscreenCanvas;
+
+  if (useWorker) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const atlasCanvas = document.createElement('canvas');
+        atlasCanvas.width = Math.max(1, Math.ceil(asciiStr.length * charSpacingX));
+        atlasCanvas.height = Math.max(1, Math.ceil(charSpacingY));
+        const actx = atlasCanvas.getContext('2d');
+        actx.fillStyle = 'black';
+        actx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+        actx.fillStyle = 'white';
+        actx.font = `${fontPx}px ${fontFamily}`;
+        actx.letterSpacing = '-0.05em';
+        actx.textBaseline = 'top';
+        for (let i = 0; i < asciiStr.length; i++) {
+          actx.fillText(asciiStr[i], i * charSpacingX, 0);
+        }
+        const atlasBitmap = await createImageBitmap(atlasCanvas);
+
+        const workerOpts = {
+          outWidth: outCanvas.width,
+          outHeight: outCanvas.height,
+          charW: charSpacingX,
+          charH: charSpacingY,
+          fps,
+          asciiStr,
+          coloredAscii,
+          invertBrightness,
+          brightness,
+          contrast,
+          exportBgColor,
+          exportTransparent,
+          asciiColor,
+          asciiOpacity
+        };
+
+        const worker = new Worker(new URL('../workers/exportWorker.js', import.meta.url));
+        
+        const checkCancel = setInterval(() => {
+          if (isCancelled?.()) {
+            worker.terminate();
+            clearInterval(checkCancel);
+            reject(new Error('CANCELLED'));
+          }
+        }, 500);
+
+        worker.onmessage = (e) => {
+          if (e.data.type === 'progress') {
+            const p = e.data.progress;
+            onProgress?.(0.5 + p * 0.5, `Encoding (GPU)... ${Math.round(p*100)}%`);
+          } else if (e.data.type === 'done') {
+            worker.terminate();
+            clearInterval(checkCancel);
+            resolve(new Blob([e.data.buffer], { type: 'video/webm' }));
+          } else if (e.data.type === 'error') {
+            worker.terminate();
+            clearInterval(checkCancel);
+            console.error('Worker error:', e.data.error);
+            reject(new Error(e.data.error));
+          }
+        };
+
+        worker.postMessage({ frames: frameData, atlasBitmap, opts: workerOpts }, [atlasBitmap, ...frameData]);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // ── Fallback setup ───────────────────────────────────────────────────
   const stream = outCanvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 8_000_000 });
   const chunks = [];
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
 
   return new Promise(async (resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
     recorder.start();
 
     const encodeStartTime = Date.now();
 
     // Phase 2: Encoding
     for (let f = 0; f < totalFrames; f++) {
-      const imgData = frameData[f];
+      sampleCtx.drawImage(frameData[f], 0, 0);
+      const imgData = sampleCtx.getImageData(0, 0, charW, charH);
       
       // Clear output canvas
       clearCanvas();
+
+      outCtx.shadowColor = 'rgba(0,0,0,0.5)';
+      outCtx.shadowBlur = 2;
 
       if (coloredAscii) {
         const d = imgData.data;
@@ -135,14 +230,18 @@ async function renderAsciiVideo(videoEl, opts, onProgress, isCancelled) {
           invertBrightness, brightness, contrast,
         });
         const asciiLen = asciiStr.length - 1;
-        outCtx.fillStyle = '#ccc';
+        outCtx.fillStyle = asciiColor;
+        outCtx.globalAlpha = asciiOpacity / 100;
         for (let i = 0; i < grayScales.length; i++) {
           const row = Math.floor(i / charW);
           const col = i % charW;
           const ch = asciiStr[Math.round((grayScales[i] / 255) * asciiLen)] || ' ';
           outCtx.fillText(ch, col * charSpacingX, row * charSpacingY);
         }
+        outCtx.globalAlpha = 1.0;
       }
+
+      outCtx.shadowBlur = 0;
 
       // ETA Logic
       let etaLabel = '';
@@ -181,6 +280,8 @@ async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
     contrast = 1,
     exportBgColor = '#111111',
     exportTransparent = false,
+    asciiColor = '#cccccc',
+    asciiOpacity = 100,
   } = opts;
 
   const GIF = await loadGifJs();
@@ -192,12 +293,16 @@ async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
   const sampleH = Math.round(sampleW * ((videoEl.videoHeight || 90) / (videoEl.videoWidth || 120)));
   
   const outCanvas = document.createElement('canvas');
-  const charSpacingX = fontPx * 0.6;
-  const charSpacingY = fontPx + 2;
-  outCanvas.width = Math.ceil(sampleW * charSpacingX);
-  outCanvas.height = Math.ceil(sampleH * charSpacingY);
   const outCtx = outCanvas.getContext('2d');
   outCtx.font = `${fontPx}px ${fontFamily}`;
+  outCtx.letterSpacing = '-0.05em';
+  const charSpacingX = outCtx.measureText('M').width || (fontPx * 0.6 * 0.95);
+  const charSpacingY = fontPx * 0.5; // matches leading-[0.5]
+  outCanvas.width = Math.ceil(sampleW * charSpacingX);
+  outCanvas.height = Math.ceil(sampleH * charSpacingY);
+  
+  outCtx.font = `${fontPx}px ${fontFamily}`;
+  outCtx.letterSpacing = '-0.05em';
   outCtx.textBaseline = 'top';
 
   const sampleCanvas = document.createElement('canvas');
@@ -235,12 +340,17 @@ async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
   const encodeStartTime = Date.now();
   
   for (let f = 0; f < totalFrames; f++) {
+    outCtx.globalAlpha = 1.0;
+    outCtx.shadowBlur = 0;
     if (exportTransparent) {
       outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
     } else {
       outCtx.fillStyle = exportBgColor;
       outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
     }
+
+    outCtx.shadowColor = 'rgba(0,0,0,0.5)';
+    outCtx.shadowBlur = 2;
 
     const imgData = frameData[f];
     const d = imgData.data;
@@ -260,14 +370,18 @@ async function renderAsciiGif(videoEl, opts, onProgress, isCancelled) {
     } else {
       sampleCtx.putImageData(imgData, 0, 0);
       const grayScales = convertToGrayScales(sampleCtx, sampleW, sampleH, { invertBrightness, brightness, contrast });
-      outCtx.fillStyle = '#ccc';
+      outCtx.fillStyle = asciiColor;
+      outCtx.globalAlpha = asciiOpacity / 100;
       for (let i = 0; i < grayScales.length; i++) {
         const row = Math.floor(i / sampleW);
         const col = i % sampleW;
         const ch = asciiStr[Math.round((grayScales[i] / 255) * asciiLen)] || ' ';
         outCtx.fillText(ch, col * charSpacingX, row * charSpacingY);
       }
+      outCtx.globalAlpha = 1.0;
     }
+    
+    outCtx.shadowBlur = 0;
 
     // Use ImageData as requested
     gif.addFrame(outCtx.getImageData(0, 0, outCanvas.width, outCanvas.height), { delay: 1000 / fps });
@@ -372,8 +486,9 @@ const ExportDropdown = ({
     
     // Character dimensions for monospace
     ctx.font = `${fontSize}px ${fontFamily}`;
-    const charW = ctx.measureText('M').width;
-    const charH = fontSize + 2;
+    ctx.letterSpacing = '-0.05em';
+    const charW = ctx.measureText('M').width || (fontSize * 0.6 * 0.95);
+    const charH = fontSize * 0.5; // matches leading-[0.5]
 
     let maxCols = 0;
     if (coloredAscii) {
@@ -398,7 +513,10 @@ const ExportDropdown = ({
     }
     
     ctx.font = `${fontSize}px ${fontFamily}`; 
+    ctx.letterSpacing = '-0.05em';
     ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 2;
 
     if (coloredAscii) {
       const tempDiv = document.createElement('div');
@@ -406,7 +524,7 @@ const ExportDropdown = ({
         tempDiv.innerHTML = lineHtml;
         const spans = tempDiv.querySelectorAll('span');
         spans.forEach((span, j) => {
-          ctx.fillStyle = span.style.color || '#cccccc';
+          ctx.fillStyle = span.style.color || asciiColor || '#cccccc';
           ctx.fillText(span.textContent, 20 + j * charW, 20 + i * charH);
         });
       });
@@ -557,12 +675,12 @@ const ExportDropdown = ({
 
     // Typography constants (must mirror the canvas render in downloadImage)
     const fontSize   = 12;
-    const charSpacingX = fontSize * 0.6; // monospace em ≈ 0.6× font-size
-    const lineH      = fontSize + 2;     // line height
+    const charSpacingX = fontSize * 0.6 * 0.95; // approx width with -0.05em letter spacing
+    const lineH      = fontSize * 0.5;     // line height matches leading-[0.5]
     const padX       = 20;
     const padY       = 20;
     const bg         = exportTransparent ? 'none' : exportBgColor;
-    const defaultFill = '#cccccc';
+    const defaultFill = asciiColor || '#cccccc';
 
     const svgParts = [];
 
@@ -596,10 +714,17 @@ const ExportDropdown = ({
       const svgH = (padY * 2 + rows.length * lineH).toFixed(0);
 
       const svg = [
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}"
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" style="letter-spacing: -0.05em;"
      font-family="monospace" font-size="${fontSize}" dominant-baseline="hanging">`,
+        `  <defs>`,
+        `    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">`,
+        `      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#000000" flood-opacity="0.5"/>`,
+        `    </filter>`,
+        `  </defs>`,
         `  <rect width="100%" height="100%" fill="${bg}"/>`,
+        `  <g filter="url(#shadow)">`,
         ...svgParts,
+        `  </g>`,
         '</svg>',
       ].join('\n');
 
@@ -629,11 +754,19 @@ const ExportDropdown = ({
       const svgW = (padX * 2 + cols * charSpacingX).toFixed(0);
       const svgH = (padY * 2 + rows.length * lineH).toFixed(0);
 
+      const opacityStyle = (asciiOpacity !== undefined && asciiOpacity < 100) ? ` opacity="${asciiOpacity / 100}"` : '';
       const svg = [
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}"
-     font-family="monospace" font-size="${fontSize}" fill="${defaultFill}" dominant-baseline="hanging">`,
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" style="letter-spacing: -0.05em;"
+     font-family="monospace" font-size="${fontSize}" fill="${defaultFill}"${opacityStyle} dominant-baseline="hanging">`,
+        `  <defs>`,
+        `    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">`,
+        `      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#000000" flood-opacity="0.5"/>`,
+        `    </filter>`,
+        `  </defs>`,
         `  <rect width="100%" height="100%" fill="${bg}"/>`,
+        `  <g filter="url(#shadow)">`,
         ...svgParts,
+        `  </g>`,
         '</svg>',
       ].join('\n');
 
@@ -684,6 +817,8 @@ const ExportDropdown = ({
         fontPx: 9,
         exportBgColor,
         exportTransparent,
+        asciiColor,
+        asciiOpacity,
       };
 
       if (mode === 'gif') {

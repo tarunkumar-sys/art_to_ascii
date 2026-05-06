@@ -1,94 +1,129 @@
-# 🎨 Ascii-Studio
+# Art to ASCII
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-6-purple.svg)](https://vitejs.dev/)
-[![Tailwind](https://img.shields.io/badge/Tailwind-4-38B2AC.svg)](https://tailwindcss.com/)
+![Project Status](https://img.shields.io/badge/Status-Stable-success?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![Performance](https://img.shields.io/badge/Performance-High_60FPS-orange?style=for-the-badge)
 
-**Ascii-Studio** is a premium, Blender-inspired web application designed for high-fidelity ASCII art conversion. It transforms images, videos, and real-time webcam feeds into stunning character-based visuals using a high-performance rendering engine.
+Art to ASCII is a comprehensive media processing platform that translates visual data into complex character-based representations in real-time. By leveraging modern browser capabilities such as WebGL, OffscreenCanvas, and Web Workers, the system provides a high-fidelity conversion environment for static images, dynamic video files, and live camera streams.
 
 ---
 
-### 🚀 Key Features
+## Technical Overview
 
-| 🛠️ Processing | 🎮 Viewport | 📤 Export & Presets |
+### ASCII Conversion Engine
+The core processing logic utilizes a two-stage conversion pipeline:
+1.  **Luminance Mapping**: Pixels are converted to grayscale values using industry-standard coefficients (0.334R + 0.333G + 0.333B).
+2.  **Character Substitution**: Grayscale values (0-255) are mapped to a predefined character ramp. The system supports custom ramps, allowing for varying levels of visual density.
+3.  **Sobel Edge Detection**: Optional spatial filtering using the Sobel operator to highlight structural boundaries within the media, enhancing the legibility of the ASCII output at lower resolutions.
+
+### Advanced Export Pipeline
+Unlike standard screen-capture solutions, the export system utilizes a dedicated headless rendering architecture:
+-   **WebGL Shaders**: A custom fragment shader processes frames in parallel on the GPU, handling brightness, contrast, inversion, and color blending.
+-   **Offscreen Rendering**: High-resolution frames are rendered using `OffscreenCanvas` within a Web Worker to prevent main-thread blocking.
+-   **WebM Muxing**: Real-time video encoding using `webm-muxer` and the `VideoEncoder` API, enabling direct-to-disk video generation from ASCII frames.
+
+### Media Management
+-   **CORS Proxying**: A backend proxy facilitates the retrieval of remote media assets while bypassing Cross-Origin Resource Sharing (CORS) restrictions.
+-   **Cloud Integration**: Background synchronization with Cloudinary for persistent storage of uploaded and processed assets.
+-   **Webcam Integration**: Low-latency stream capturing via the MediaDevices API.
+
+---
+
+## Feature Matrix
+
+| Category | Capability | Technical Detail |
 | :--- | :--- | :--- |
-| **Real-time Engine**: Instant conversion of images, MP4/WebM videos, and **Live Webcam**. | **Blender Navigation**: Professional pan (MMB) and zoom (Scroll) controls. | **GIF Animation**: Export video segments as universal animated GIFs via `gif.js`. |
-| **Edge Detection**: Integrated Sobel operator for structural ASCII outlines. | **Integrated Shortcuts**: Quick-access keybindings dropdown (Window menu). | **HTML Snippets**: Copy colored ASCII as production-ready CSS/HTML snippets. |
-| **Preset System**: Save and name custom render configurations to `localStorage`. | **Dark Studio UI**: 1:1 Blender-style interface for a focused workflow. | **Progress & ETA**: Real-time export progress with estimated time remaining. |
+| **Media Sources** | Images, Video, Webcam | Local file system, Remote URLs, and live hardware streams. |
+| **Visual Filters** | Intensity Controls | Real-time adjustment of brightness (0.5x to 2.0x) and contrast. |
+| **Rendering** | Modes | Support for monochrome, colored ASCII, and edge-only views. |
+| **Customization** | Character Sets | Curated presets (Balanced, Dark, Minimal) plus user-defined ramps. |
+| **Interactivity** | Viewport Controls | Hardware-accelerated zooming (0.1x to 5x) and panning. |
+| **Workflow** | Video Tools | Integrated timeline with frame seeking and regional trimming. |
 
 ---
 
-### ✨ What's New
+## Technology Stack
 
--   **🎬 Animated GIF Export**: High-quality GIF generation for Discord, Twitter, and GitHub.
--   **💾 Named Presets**: Store your favorite combinations of characters, brightness, and contrast.
--   **🎨 Background Control**: Custom background colors for all exports, including transparency support for PNG/GIF.
--   **📋 Copy HTML**: One-click "Copy HTML" for pasting colored ASCII directly into web pages or READMEs.
--   **⏱️ ETA Logic**: Intelligent throughput measurement provides accurate encoding time estimates.
--   **☁️ Cloudinary Sync**: Silent, automatic background archiving of original media and generated ASCII art to Cloudinary.
+### Core Frameworks
+![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS_4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
----
+### Graphics & Performance
+![WebGL](https://img.shields.io/badge/WebGL_Rendering-990000?style=for-the-badge&logo=webgl&logoColor=white)
+![WebWorkers](https://img.shields.io/badge/Web_Workers-000000?style=for-the-badge&logo=webassembly&logoColor=white)
+![OffscreenCanvas](https://img.shields.io/badge/Offscreen_Canvas-FFCA28?style=for-the-badge&logo=javascript&logoColor=black)
 
-### 🛠️ Installation & Setup
+### Backend & Storage
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Cloudinary](https://img.shields.io/badge/Cloudinary_Storage-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel_Serverless-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
-Get started with Ascii-Studio in seconds:
-
-#### 1. Clone the Repository
-```bash
-git clone https://github.com/tarunkumar-sys/art_to_ascii.git
-cd art_to_ascii
-```
-
-#### 2. Install Dependencies
-```bash
-npm install
-```
-
-#### 3. Environment Variables
-Create a `.env` file in the root directory and add your Cloudinary credentials:
-```env
-CLOUDINARY_URL=cloudinary://<your_api_key>:<your_api_secret>@<your_cloud_name>
-```
-
-#### 4. Run Development Server
-```bash
-npm run dev
-```
-*The app will be available at `http://localhost:5173`*
+### Developer Utilities
+![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)
+![PostCSS](https://img.shields.io/badge/PostCSS-DD3A0A?style=for-the-badge&logo=postcss&logoColor=white)
+![Lucide](https://img.shields.io/badge/Lucide_Icons-FF4B4B?style=for-the-badge&logo=lucide&logoColor=white)
 
 ---
 
-### 📖 How to Use
+## Architecture Detail
 
-1.  **Media Source**: Open the **Source Tab** (ImageIcon) in the sidebar. You can:
-    *   **Open File**: Drag & drop or click to upload local images/videos.
-    *   **Activate Webcam**: Start a real-time live ASCII stream.
-    *   **Fetch URL**: Pull media directly from the web (CORS permitting).
-2.  **Render Properties**: Switch to the **Render Tab** (CameraIcon) to tweak the engine:
-    *   **Sampling**: Change the character ramp or resolution density.
-    *   **Presets**: Save your current settings or load one of the built-in professional ramps.
-    *   **Adjustments**: Fine-tune **Brightness** and **Contrast** using Blender-style draggable fields.
-3.  **Visuals**: Customize the **Fill Color** and **Opacity** or toggle **Colored Output** for vibrant RGB ASCII.
-4.  **Navigation & Keys**: 
-    *   **Pan**: Middle Mouse Button or `Space + Drag`.
-    *   **Zoom**: Scroll Wheel or `+`/`-` keys.
-    *   **Shortcuts**: Click the **Window** menu in the header to see all keyboard commands.
-5.  **Export**: Use the **Export** button in the header to save as PNG, TXT, SVG, WebM, or GIF. Configure your **Background Color** and **Alpha** before rendering.
+The application follows a modular architecture designed for scalability and separation of concerns:
+
+-   **Frontend Service**: Handles user interactions, state management (via React hooks), and real-time DOM-based ASCII rendering.
+-   **API Layer**: Provides server-side logic for media proxying and authenticated uploads to Cloudinary.
+-   **Worker Layer**: Offloads computationally expensive tasks (video encoding, high-res frame rendering) to background threads.
+-   **Utility Tier**: Contains the core mathematical models for ASCII conversion, edge detection, and media formatting.
 
 ---
 
-### 💻 Tech Stack
+## Setup & Installation
 
--   **React 19**: Modern UI component architecture with hooks-based state.
--   **Vite 6**: Blazing fast development environment and optimized builds.
--   **Tailwind CSS 4**: Custom "Blender-Dark" theme implementation.
--   **GIF.js**: Client-side GIF encoding using Web Workers.
--   **HTML5 Canvas**: Low-level pixel processing and frame extraction.
--   **Lucide React**: Clean, consistent interface iconography.
+### Infrastructure Requirements
+- Node.js environment (v18 or higher)
+- Cloudinary API credentials
+- Modern browser with WebGL 2.0 support
+
+### Local Deployment
+1.  **Repository Setup**:
+    ```bash
+    git clone https://github.com/tarunkumar-sys/art_to_ascii.git
+    cd art_to_ascii
+    ```
+2.  **Dependency Resolution**:
+    ```bash
+    npm install
+    ```
+3.  **Environment Configuration**:
+    Initialize a `.env` file with the following parameters:
+    ```env
+    CLOUDINARY_CLOUD_NAME=your_cloud_name
+    CLOUDINARY_API_KEY=your_api_key
+    CLOUDINARY_API_SECRET=your_api_secret
+    ```
+4.  **Execution**:
+    ```bash
+    npm run dev
+    ```
 
 ---
 
-*Built with precision for the ASCII art community.*
+## Contribution Guidelines
 
+The project maintains a high standard for code quality and performance. When contributing, please ensure:
+-   Modular component design.
+-   Strict adherence to the existing linting rules.
+-   Optimization of GPU-intensive code paths.
 
+---
+
+## License
+
+This project is licensed under the MIT License. Details can be found in the LICENSE file within the repository.
+
+---
+
+<div align="center">
+  <sub>Engineered for visual excellence by the Open Source Community</sub>
+</div>
