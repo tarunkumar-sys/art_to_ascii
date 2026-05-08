@@ -25,34 +25,28 @@ The system follows a **Flux-inspired Centralized State** architecture with a **P
 ```mermaid
 graph TD
     subgraph "Frontend Layer (React)"
-        App[App.jsx - State Orchestrator]
-        UI[Sidebar / BottomPanel / Modals]
-        Viewer[AsciiViewer - Component]
+        App[App.jsx - Main Shell]
+        Hooks[src/hooks/ - State Orchestrators]
+        UI[Components - Presentation]
     end
 
-    subgraph "Processing Layer"
-        Engine[ascii-engine.js - Pure Logic]
-        Worker[exportWorker.js - WebGL/Muxing]
+    subgraph "Logic & Processing"
+        Engine[ascii-engine.js - Pure Math]
+        Worker[exportWorker.js - GPU Logic]
     end
 
-    subgraph "Media Layer"
-        MS[MediaSource.jsx - Manager]
-        Proxy[api/fetchMedia - CORS Proxy]
-    end
-
-    subgraph "Infrastructure"
+    subgraph "Media & Backend"
+        Server[server/ - Dev Middleware]
+        API[api/ - Serverless Routes]
         CD[Cloudinary - Storage]
     end
 
-    App --> MS
-    App --> Engine
-    App --> UI
-    UI --> App
-    MS --> App
-    Viewer --> App
-    App --> Worker
-    MS --> Proxy
-    MS --> CD
+    App --> Hooks
+    Hooks --> UI
+    Hooks --> Engine
+    Hooks --> Worker
+    API --> Server
+    API --> CD
 ```
 
 ---
@@ -98,33 +92,35 @@ sequenceDiagram
 
 ```text
 ascii-app/
-├── api/                    # Vercel-style Serverless API Routes
-│   ├── fetchMedia.js       # CORS proxy and media extractor (Cobalt integration)
-│   ├── uploadMedia.js      # Cloudinary upload handler (multipart/base64/URL)
-│   └── gifWorker.js        # Proxy for gif.js worker to bypass origin limits
+├── api/                    # Vercel Serverless Functions
+│   ├── fetchMedia.js       # CORS proxy & Cobalt integration
+│   ├── uploadMedia.js      # Cloudinary upload handler
+│   └── gifWorker.js        # gif.js worker proxy
+├── server/                 # Local Dev Middleware & Proxy
+│   ├── cobalt.js           # Shared Cobalt extraction logic
+│   ├── devApiProxy.js      # Local dev server API routes
+│   └── middleware.js       # CORS and security headers
 ├── src/                    # Main Application Source
-│   ├── assets/             # Branding and static UI assets
-│   ├── components/         # React Functional Components
-│   │   ├── AsciiViewer.jsx     # High-performance viewport (SVG/Text/Pan-Zoom)
-│   │   ├── Sidebar.jsx        # Unified configuration sidebar
-│   │   ├── BottomPanel.jsx    # Timeline and playback orchestration
-│   │   ├── MediaSource.jsx     # Imperative media state manager
-│   │   ├── ExportDropdown.jsx  # Export orchestration logic
-│   │   ├── Layout.jsx          # Dashboard grid and layout providers
-│   │   └── ...                 # Modals, Dropdowns, and UI primitives
+│   ├── components/         # Modular UI Components
+│   │   ├── AsciiViewer.jsx     # High-performance viewport
+│   │   ├── Sidebar.jsx        # Configuration hub
+│   │   ├── BottomPanel.jsx    # Timeline & Playback UI
+│   │   ├── MediaSource.jsx     # Media element controller
+│   │   └── ...                 # Modals & UI primitives
+│   ├── hooks/              # Custom Hooks (Logic & State)
+│   │   ├── usePlayback.js      # Video time & play/pause state
+│   │   ├── useMediaManager.js  # File loading & resolution
+│   │   ├── useAsciiRenderer.js # Conversion orchestration
+│   │   └── ...                 # Viewport, Shortcuts, Settings
 │   ├── utils/              # Pure Logic & Utility Functions
-│   │   ├── ascii-engine.js    # Computational core (Luminance, Sobel, Mapping)
-│   │   └── media-fetcher.js   # Client-side media resolution and Blob handling
-│   ├── workers/            # Web Workers for Non-blocking Tasks
-│   │   └── exportWorker.js    # WebGL-accelerated export unit
-│   ├── App.jsx             # Main Application Logic & Global State
-│   ├── main.jsx            # React 19 concurrent mode entry point
-│   └── index.css           # Tailwind CSS 4 entry and global design tokens
-├── public/                 # Static assets (fonts, workers, icons)
-├── eslint.config.js        # Linting and code style configuration
-├── package.json            # Dependency manifest and scripts
-├── vite.config.js          # Build tool configuration & API proxy setup
-└── .env                    # Environment secrets (Cloudinary credentials)
+│   │   └── ascii-engine.js    # Computational core (Luminance, Sobel)
+│   ├── workers/            # Multi-threaded Processing
+│   │   └── exportWorker.js    # WebGL-accelerated export
+│   ├── App.jsx             # Component composition & Analytics
+│   ├── main.jsx            # Entry point
+│   └── index.css           # Global styles & Design tokens
+├── vite.config.js          # Build tool & Dev server config
+└── .env                    # Environment secrets
 ```
 
 ## 🧩 Architectural Responsibilities
@@ -137,9 +133,14 @@ ascii-app/
 - **`MediaSource.jsx`**: An imperative interface component. It acts as a bridge between React state and raw HTML5 media elements, managing object URL lifecycles.
 - **`ExportDropdown.jsx`**: The gateway to the export pipeline. Prepares character atlases and coordinates with the background worker.
 
+### Logic & State Hooks (`src/hooks/`)
+- **`useMediaManager.js`**: Handles file selection, URL resolution, and media metadata management.
+- **`usePlayback.js`**: Orchestrates video playback state (time, duration, speed, loop).
+- **`useAsciiRenderer.js`**: Connects the raw computation engine to the React lifecycle, managing conversion frequency and result caching.
+- **`useKeyboardShortcuts.js`**: Implements a global listener for professional shortcuts (Space, Zoom, Undo/Redo).
+
 ### Computational Layer (`src/utils/`)
 - **`ascii-engine.js`**: The project's mathematical heart. Optimized for high-throughput pixel processing using `Uint32Array` for luminance mapping and pre-calculated Sobel kernels.
-- **`media-fetcher.js`**: Resolves media from diverse sources (Local, Remote, Social). Implements retry logic and MIME-type validation.
 
 ### Background Processing (`src/workers/`)
 - **`exportWorker.js`**: A high-performance WebGL environment. It maintains its own internal frame buffer and executes custom GLSL fragment shaders for real-time ASCII synthesis during export.
@@ -158,7 +159,8 @@ ascii-app/
 | **Web Workers** | Encodes videos and processes high-res frames in a separate thread to keep the main UI thread responsive (60fps). |
 | **Typed Arrays** | `Float32Array` provides predictable memory layout and near-native performance for pixel manipulation in JS. |
 | **WebGL Shaders** | Mapping ASCII characters on the CPU for a 4K video is $O(n^2)$ and slow. Shaders parallelize this across thousands of GPU cores. |
-| **Centralized State** | Simplifies the complex synchronization required between the viewer, sidebar, and export modules. |
+| **Centralized Hooks** | Decoupling logic from UI components ensures that the conversion engine remains testable and reusable across different viewports. |
+| **Vercel Analytics** | Real-time monitoring of performance metrics and user engagement to drive data-informed optimizations. |
 
 ---
 
@@ -248,4 +250,4 @@ The `renderOpts` bundle is designed for extensibility:
 - **Performance Benchmarking**: Automated tracking of "Time to First ASCII Frame" and "Export Frames Per Second".
 
 ---
-*Documentation Version: 1.0.0*
+*Documentation Version: 1.1.0*
