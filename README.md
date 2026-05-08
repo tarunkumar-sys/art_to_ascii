@@ -9,6 +9,34 @@ Art to ASCII is a comprehensive media processing platform that translates visual
 
 ---
 
+## Demos & Screenshots
+
+### 🖥️ Dashboard Interface
+The application features a professional, Blender-inspired UI designed for distraction-free creative work.
+
+![Dashboard Color Preview](public/demo/preview_color.png)
+*Real-time color ASCII rendering with intensity controls.*
+
+![Dashboard Gray Preview](public/demo/preview_gray.png)
+*Classic grayscale character mapping with high-fidelity luminance tracking.*
+
+### 🖼️ Image Transformation
+| Source Media | ASCII Representation |
+| :---: | :---: |
+| ![Input Image](public/demo/image/download.png) | ![ASCII Art](public/demo/image/ascii-art.png) |
+| *Original Stan Lee Portrait* | *Character-based Reconstruction* |
+
+### 🎬 Video Transformation
+The system supports high-performance video conversion with GPU-accelerated frame processing.
+
+| Source Media (MP4) | ASCII Representation (WebM) |
+| :---: | :---: |
+| <video src="public/demo/video/cool-dance-anime-naruto-avqklpwrjtzlnbm6.mp4" width="100%" controls loop muted></video> | <video src="public/demo/video/ascii-export.webm" width="100%" controls loop muted></video> |
+| *Original Anime Clip* | *Processed ASCII Export* |
+
+---
+
+
 ## Technical Overview
 
 ### ASCII Conversion Engine

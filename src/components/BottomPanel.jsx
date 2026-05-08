@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward,
   ChevronUp, ChevronDown, Scissors, Check, X
@@ -257,7 +257,7 @@ const BottomPanel = ({
 
   // Derived Info (Frames are only for display)
   const currentFrame = Math.floor(currentTime * FPS);
-  const totalFrames  = Math.floor(duration * FPS);
+
 
   // Time-driven marker generation
   const { markers, timeStep } = useMemo(() => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Monitor, Sliders } from 'lucide-react';
 
 const Layout = ({ sidebar, viewer, bottomPanel, exportDropdown, shortcutsDropdown, onHelpClick }) => {

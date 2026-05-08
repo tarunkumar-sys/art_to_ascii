@@ -1,11 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { MousePointer2, Move, ZoomIn, ZoomOut, Box, Maximize } from 'lucide-react';
 
 const AsciiViewer = ({
   asciiOutput, coloredAscii, mediaType, previewCanvasRef,
   zoom, setZoom, pan, setPan, isDragging,
   activeTool, setActiveTool,
-  handleWheel, handleMouseDown, handleMouseMove, handleMouseUp,
+  handleMouseDown, handleMouseMove, handleMouseUp,
   asciiColor, asciiOpacity, fontFamily
 }) => {
   const viewportRef = useRef(null);

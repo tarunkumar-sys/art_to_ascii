@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { convertToGrayScales, drawVideoAscii } from '../utils/ascii-engine';
+import { convertToGrayScales } from '../utils/ascii-engine';
 
 // Dynamic GIF.js loader
 const loadGifJs = () => new Promise((resolve, reject) => {
@@ -12,15 +12,7 @@ const loadGifJs = () => new Promise((resolve, reject) => {
   document.head.appendChild(script);
 });
 
-// Dynamic WebMMuxer loader
-const loadWebMMuxer = () => new Promise((resolve, reject) => {
-  if (window.WebMMuxer) return resolve(window.WebMMuxer);
-  const script = document.createElement('script');
-  script.src = 'https://unpkg.com/webm-muxer/build/webm-muxer.js';
-  script.onload = () => resolve(window.WebMMuxer);
-  script.onerror = reject;
-  document.head.appendChild(script);
-});
+
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -779,6 +771,11 @@ const ExportDropdown = ({
   };
 
   const copyToClipboard = () => navigator.clipboard.writeText(asciiOutput);
+  const copyMarkdown = () => {
+    if (!asciiOutput) return;
+    const snippet = "```\n" + asciiOutput + "\n```";
+    navigator.clipboard.writeText(snippet);
+  };
   const copyAsHTML = () => {
     if (!asciiOutput) return;
     const style = `background:${exportBgColor}; color:#ccc; font-family:monospace; font-size:6px; line-height:0.5; padding:20px; white-space:pre; display:inline-block;`;
@@ -926,7 +923,7 @@ const ExportDropdown = ({
 
   // ── item row ───────────────────────────────────────────────────────────────
   const Row = ({ icon, label, badge, onClick, disabled = false }) => {
-    const [hov, setHov] = React.useState(false);
+    const [hov, setHov] = useState(false);
     return (
       <button
         onClick={() => { if (!disabled) { onClick(); setIsOpen(false); } }}

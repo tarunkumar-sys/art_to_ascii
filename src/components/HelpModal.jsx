@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Info, HelpCircle, Code, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Info, HelpCircle, Code, ExternalLink } from 'lucide-react';
 
 const HelpModal = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('help'); // 'help' or 'about'

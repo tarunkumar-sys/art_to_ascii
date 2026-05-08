@@ -1,9 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Camera, Image as ImageIcon, FolderOpen,
-  ChevronDown, ChevronRight, Plus, Minus, Link2,
-  Webcam, Globe, Check, X, AlertCircle, Loader2,
-  MousePointer2
+  Plus, Globe, Check, X, AlertCircle, Loader2,
 } from 'lucide-react';
 import { ASCII_PRESETS, DEFAULT_ASCII } from '../utils/ascii-engine';
 import ColorPicker from './ColorPicker';

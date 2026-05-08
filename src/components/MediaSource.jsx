@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
 import { fetchMediaAsFile } from '../utils/media-fetcher';
 
 const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
@@ -7,7 +7,7 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
   const webcamStreamRef = useRef(null);
   const [activeType, setActiveType] = useState(null); // 'image', 'video', 'webcam'
   const [sourceUrl, setSourceUrl] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+
 
   useImperativeHandle(ref, () => ({
     videoElement: videoRef.current,
@@ -33,7 +33,7 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
     },
 
     loadFromUrl: async (url) => {
-      setIsLoading(true);
+
       try {
         const file = await fetchMediaAsFile(url);
         
@@ -60,7 +60,7 @@ const MediaSource = forwardRef(({ onMediaReady, onFetchError }, ref) => {
         console.error('[MediaSource] Fetch Error:', err);
         onFetchError?.(err.message || 'Failed to fetch media via proxy');
       } finally {
-        setIsLoading(false);
+
       }
     },
 

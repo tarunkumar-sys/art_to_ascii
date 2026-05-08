@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pipette, X, GripHorizontal } from 'lucide-react';
 
 const ColorPicker = ({ color, opacity, onChangeColor, onChangeOpacity, recentColors, onClose }) => {

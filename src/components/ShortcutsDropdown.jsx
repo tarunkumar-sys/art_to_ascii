@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect, Fragment } from 'react';
 import { Command } from 'lucide-react';
 
 const ShortcutsDropdown = ({ isOpen, setIsOpen }) => {
@@ -110,7 +110,7 @@ const ShortcutsDropdown = ({ isOpen, setIsOpen }) => {
       </div>
 
       {sections.map((section, sIdx) => (
-        <React.Fragment key={section.title}>
+        <Fragment key={section.title}>
           <div style={S.sectionLbl}>{section.title}</div>
           {section.keys.map((item) => (
             <div key={item.key} style={S.item}>
@@ -119,7 +119,7 @@ const ShortcutsDropdown = ({ isOpen, setIsOpen }) => {
             </div>
           ))}
           {sIdx < sections.length - 1 && <div style={S.divider} />}
-        </React.Fragment>
+        </Fragment>
       ))}
     </div>
   );
