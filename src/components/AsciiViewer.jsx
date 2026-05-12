@@ -118,7 +118,8 @@ const AsciiViewer = ({
             <div className="text-center text-[#3a3a3a] flex flex-col items-center">
               <Box className="w-14 h-14 mb-2 opacity-40" />
               <p className="text-sm">No media loaded</p>
-              <p className="text-xs opacity-60 mt-1">Open a file in the Properties panel →</p>
+              <p className="text-xs opacity-60 mt-1 hidden md:block">Open a file in the Properties panel →</p>
+              <p className="text-xs opacity-60 mt-1 md:hidden">Open a file in the Properties panel ↓</p>
             </div>
           </div>
         )}

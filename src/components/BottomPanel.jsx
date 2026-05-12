@@ -462,7 +462,7 @@ const BottomPanel = ({
             <div className="flex-1 flex items-center justify-end gap-3">
 
               {/* Speed Controller */}
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <span className="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">Speed</span>
                 <div
                   ref={speedBarRef}
@@ -481,13 +481,13 @@ const BottomPanel = ({
 
               {/* Time Readout */}
               <div className="flex items-center gap-2 bg-black/20 px-2 py-0.5 rounded border border-white/5 h-6">
-                <span className="text-[10px] font-mono text-blender-active font-bold min-w-[65px] text-center">
+                <span className="text-[10px] font-mono text-blender-active font-bold min-w-[45px] sm:min-w-[65px] text-center">
                   {formatTime(currentTime)}
                 </span>
-                <span className="text-[8px] text-gray-500 font-mono border-l border-white/10 pl-2">
+                <span className="hidden sm:inline text-[8px] text-gray-500 font-mono border-l border-white/10 pl-2">
                   {currentFrame}f
                 </span>
-                <span className="text-[8px] text-gray-500 font-mono border-l border-white/10 pl-2">
+                <span className="hidden sm:inline text-[8px] text-gray-500 font-mono border-l border-white/10 pl-2">
                   {duration.toFixed(1)}s
                 </span>
               </div>
